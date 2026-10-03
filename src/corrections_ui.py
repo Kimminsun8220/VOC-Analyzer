@@ -54,14 +54,14 @@ def show_corrections(store, run, book, dataset):
             if source_result.no_content_reason:
                 st.text(source_result.no_content_reason)
             st.dataframe(source_frame.rename(columns=LABELS), hide_index=True, width="stretch")
-            st.write("**새 코드북의 AI 후보**")
+            st.write("**새 분류 기준표의 AI 후보**")
             candidate_frame = pd.DataFrame(issue_rows(current), columns=list(LABELS)).drop(columns="item_id")
             candidate_frame["code_id"] = candidate_frame["code_id"].map({c.id: f"{c.category} → {c.name}" for c in book["codes"]})
             st.dataframe(candidate_frame.rename(columns=LABELS), hide_index=True, width="stretch")
         st.caption("아래 목록은 새 AI 후보입니다. 이전 수정 의도를 확인해 현재 기준으로 고친 뒤 저장하면 이 건의 검토가 완료됩니다.")
     else:
         st.caption(f"현재 출처: {effective[voc_id]['source']} · 결과 개정 {run['result_revision']}")
-    with st.expander("현재 코드북의 분류 기준 확인"):
+    with st.expander("현재 분류 기준표 확인"):
         st.dataframe(pd.DataFrame([{"대분류": c.category, "세부분류": c.name, "기준": c.definition} for c in book["codes"]]),
                      hide_index=True, width="stretch")
     nonce_key = prefix + "_nonce"

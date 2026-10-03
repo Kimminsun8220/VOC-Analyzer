@@ -123,32 +123,30 @@ def no_ai(monkeypatch):
     monkeypatch.setattr(ai_module, "GeminiAI", lambda *args: pytest.fail("자료 관리에서 AI 호출 금지"))
 
 
-def test_ui_rename_cancel_and_delete_switch_to_remaining_dataset(monkeypatch):
+def test_ui_inline_rename_and_immediate_delete_switch_to_remaining_dataset(monkeypatch):
     no_ai(monkeypatch)
     store = Store()
     target, books, runs = saved_bundle(store)
     other, _, _ = saved_bundle(store, "남겨둘 자료")
     app = AppTest.from_file(APP_PATH).run()
-    app.selectbox(key="dataset_id").set_value(target).run()
+    app.button(key=f"dataset_select_{target}").click().run()
     app.radio(key="nav").set_value("3. 분류 결과").run()
+    assert "입력 자료 관리" not in [expander.label for expander in app.expander]
+    app.button(key=f"dataset_icon_edit_{target}").click().run()
     app.text_input(key=f"dataset_name_{target}").set_value("변경한 자료 이름")
-    app.button(key=f"dataset_rename_save_{target}").click().run()
+    app.button(key=f"dataset_icon_save_{target}").click().run()
     assert store.dataset(target)["name"] == "변경한 자료 이름"
-    assert app.selectbox(key="dataset_id").value == target
-    app.button(key=f"dataset_delete_{target}").click().run()
-    assert len(store.list_datasets()) == 2
-    assert any("변경한 자료 이름" in warning.value for warning in app.warning)
-    app.button(key=f"dataset_delete_cancel_{target}").click().run()
-    assert len(store.list_datasets()) == 2
-    assert f"dataset_delete_confirm_{target}" not in [button.key for button in app.button]
-    app.button(key=f"dataset_delete_{target}").click().run()
-    app.button(key=f"dataset_delete_confirm_{target}").click().run()
+    assert app.session_state.dataset_id == target
+    assert app.button(key=f"dataset_select_{target}").label == "변경한 자료 이름"
+    app.button(key=f"dataset_icon_delete_{target}").click().run()
     assert not app.exception and not app.error
-    assert app.selectbox(key="dataset_id").value == other
+    assert [row["id"] for row in store.list_datasets()] == [other]
+    assert app.session_state.dataset_id == other
     assert app.radio(key="nav").value == "3. 분류 결과"
     assert all(not any(identifier in key for identifier in (target, *books, *runs)) for key in app.session_state.keys())
+    assert not any("삭제 확인" in button.label for button in app.button)
     fresh = AppTest.from_file(APP_PATH).run()
-    assert fresh.selectbox(key="dataset_id").value == other and not fresh.exception
+    assert fresh.session_state.dataset_id == other and not fresh.exception
 
 
 def test_ui_delete_last_dataset_returns_to_input_and_can_save_again(monkeypatch):
@@ -157,8 +155,7 @@ def test_ui_delete_last_dataset_returns_to_input_and_can_save_again(monkeypatch)
     target, _, _ = saved_bundle(store)
     app = AppTest.from_file(APP_PATH).run()
     app.radio(key="nav").set_value("2. 분류 기준표").run()
-    app.button(key=f"dataset_delete_{target}").click().run()
-    app.button(key=f"dataset_delete_confirm_{target}").click().run()
+    app.button(key=f"dataset_icon_delete_{target}").click().run()
     assert not store.list_datasets() and not app.exception and not app.error
     assert app.radio(key="nav").value == "1. 입력"
     assert any("저장된 입력 자료가 없습니다" in caption.value for caption in app.caption)
@@ -168,18 +165,72 @@ def test_ui_delete_last_dataset_returns_to_input_and_can_save_again(monkeypatch)
     assert len(store.list_datasets()) == 1 and not app.exception
 
 
-def test_ui_selection_change_cancels_pending_delete_and_running_disables_delete(monkeypatch):
+def test_ui_manages_unselected_row_without_changing_current_analysis(monkeypatch):
+    no_ai(monkeypatch)
+    store = Store()
+    target, _, _ = saved_bundle(store)
+    other, _, _ = saved_bundle(store)  # Identical names must still act on the right ID.
+    app = AppTest.from_file(APP_PATH).run()
+    assert app.button(key=f"dataset_select_{other}").label == "관리할 자료 1"
+    assert app.button(key=f"dataset_select_{target}").label == "관리할 자료 2"
+    app.button(key=f"dataset_select_{other}").click().run()
+    app.radio(key="nav").set_value("3. 분류 결과").run()
+    selected_run = app.selectbox(key=f"result_choice_{other}").value
+    metrics = [metric.value for metric in app.metric]
+    app.button(key=f"dataset_icon_edit_{target}").click().run()
+    app.text_input(key=f"dataset_name_{target}").set_value("다른 줄에서 수정")
+    app.button(key=f"dataset_icon_save_{target}").click().run()
+    assert store.dataset(target)["name"] == "다른 줄에서 수정"
+    assert app.session_state.dataset_id == other
+    app.button(key=f"dataset_icon_delete_{target}").click().run()
+    assert app.session_state.dataset_id == other
+    assert store.dataset(other)["name"] == "관리할 자료"
+    assert not app.exception and not app.error
+    assert app.selectbox(key=f"result_choice_{other}").value == selected_run
+    assert [metric.value for metric in app.metric] == metrics
+
+
+@pytest.mark.parametrize("name", ["", "   "])
+def test_ui_bad_name_keeps_inline_editor_and_original_name(monkeypatch, name):
+    no_ai(monkeypatch)
+    store = Store()
+    target, _, _ = saved_bundle(store)
+    app = AppTest.from_file(APP_PATH).run()
+    app.button(key=f"dataset_icon_edit_{target}").click().run()
+    app.text_input(key=f"dataset_name_{target}").set_value(name)
+    app.button(key=f"dataset_icon_save_{target}").click().run()
+    assert store.dataset(target)["name"] == "관리할 자료"
+    assert app.text_input(key=f"dataset_name_{target}").value == name
+    assert any("1~100자" in error.value for error in app.error)
+    assert not app.exception
+
+
+def test_ui_selection_leaves_unsaved_edit_and_running_disables_delete(monkeypatch):
     no_ai(monkeypatch)
     store = Store()
     target, _, runs = saved_bundle(store)
     other, _, _ = saved_bundle(store, "다른 자료")
     app = AppTest.from_file(APP_PATH).run()
-    app.selectbox(key="dataset_id").set_value(target).run()
-    app.button(key=f"dataset_delete_{target}").click().run()
-    app.selectbox(key="dataset_id").set_value(other).run()
-    app.selectbox(key="dataset_id").set_value(target).run()
-    assert f"dataset_delete_confirm_{target}" not in [button.key for button in app.button]
+    app.button(key=f"dataset_icon_edit_{target}").click().run()
+    app.text_input(key=f"dataset_name_{target}").set_value("아직 저장하지 않음")
+    app.button(key=f"dataset_select_{other}").click().run()
+    assert store.dataset(target)["name"] == "관리할 자료"
+    assert f"dataset_name_{target}" not in [field.key for field in app.text_input]
     store.claim(runs[1])
     app.run()
-    assert app.button(key=f"dataset_delete_{target}").disabled
+    assert app.button(key=f"dataset_icon_delete_{target}").disabled
     assert not app.exception and not app.error
+
+
+def test_ui_delete_race_preserves_data_and_reports_running_analysis(monkeypatch):
+    no_ai(monkeypatch)
+    store = Store()
+    target, _, runs = saved_bundle(store)
+    app = AppTest.from_file(APP_PATH).run()
+    assert not app.button(key=f"dataset_icon_delete_{target}").disabled
+    store.claim(runs[1])
+    app.button(key=f"dataset_icon_delete_{target}").click().run()
+    assert store.dataset(target)["name"] == "관리할 자료"
+    assert any("진행 중" in error.value for error in app.error)
+    assert app.button(key=f"dataset_icon_delete_{target}").disabled
+    assert not app.exception

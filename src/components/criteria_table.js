@@ -6,7 +6,7 @@ export default function(component) {
   if (root.saveHandler) document.removeEventListener('click', root.saveHandler, true);
   const saveHandler = event => {
     const control = event.target.closest('button');
-    if (!root.isConnected || !control || root.contains(control) || control.textContent.trim() !== '변경 내용 저장') return;
+    if (!root.isConnected || !control || root.contains(control) || control.textContent.trim() !== '분류 기준표 저장') return;
     event.preventDefault(); event.stopImmediatePropagation();
     const snapshot = Array.from(root.querySelectorAll('tbody tr')).map(tr => {
       const row = {id: tr.dataset.rowId};

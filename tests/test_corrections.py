@@ -401,7 +401,9 @@ def test_ui_codebook_edit_and_recode_with_parent(prepared, monkeypatch):
     monkeypatch.setattr(ai_module, "GeminiAI", lambda *args: AI())
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     app.radio(key="nav").set_value("2. 분류 기준표").run()
-    app.session_state[f"revise_{book}_editor"] = {"edited_rows": {0: {"name": "도착 속도"}}, "deleted_rows": [], "added_rows": []}
+    draft = deepcopy(app.session_state[f"revise_{book}_draft"])
+    draft["rows"][0]["name"] = "도착 속도"
+    app.session_state[f"revise_{book}_draft"] = draft
     app.button(key=f"revise_{book}_save").click().run()
     assert not app.exception and not app.error
     app.button(key="start_classification").click().run()

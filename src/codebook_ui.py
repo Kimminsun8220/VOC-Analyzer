@@ -4,7 +4,9 @@ import pandas as pd
 from pydantic import ValidationError
 import streamlit as st
 
-from src.codebook_changes import edit_codebook, merge_codes, split_code
+from src.codebook_changes import merge_codes, split_code
+from src.codebook_table import save_table_draft
+from src.codebook_table_ui import interactive_table
 
 
 def show_codebook_changes(store, book, with_ai):
@@ -14,21 +16,20 @@ def show_codebook_changes(store, book, with_ai):
         with st.spinner("AI가 입력한 이름에 맞는 분류 기준을 채우고 있습니다…"):
             return with_ai(lambda ai: ai.code_definitions(*args), model=book["model"])
 
-    with st.expander("이 분류 기준표 수정·통합·분리"):
-        st.caption("저장 후 ‘변경된 기준으로 다시 분류’를 실행하면 결과에 반영됩니다.")
-        operation = st.radio("변경 방법", ["이름·기준·행 편집", "같은 의미 코드 통합", "코드 분리"], key=prefix + "_mode", horizontal=True)
+    with st.container():
+        operation = st.radio("작업", ["표 편집", "분류 통합", "분류 분리"], key=prefix + "_mode", horizontal=True)
         labels = {c.id: f"{c.category} → {c.name}" for c in book["codes"]}
         try:
             new_id = None
-            if operation == "이름·기준·행 편집":
-                frame = pd.DataFrame([{key: getattr(c, key) for key in ("id", "category", "name", "definition")} for c in book["codes"]],
-                                     columns=["id", "category", "name", "definition"])
-                edited = st.data_editor(frame, num_rows="dynamic", disabled=["id"], hide_index=True, width="stretch", key=prefix + "_editor",
-                    column_config={"id": None, "category": "대분류", "name": "세부분류", "definition": "분류 기준"})
-                if st.button("편집 내용으로 새 버전 저장", key=prefix + "_save"):
-                    new_id = edit_codebook(store, book["id"], edited.astype(object).where(pd.notna(edited), None).to_dict("records"))
-            elif operation == "같은 의미 코드 통합":
-                st.caption("같은 의미의 코드만 통합하세요. 함께 조회하려면 결과 화면의 묶어보기를 사용하세요.")
+            if operation == "표 편집":
+                with st.expander("편집 방법"):
+                    st.markdown("- 수정: 셀 클릭 후 입력\n- 합치기: 행 왼쪽 손잡이를 다른 행에 끌어 놓기\n- 분리·삭제: 행 우클릭 또는 오른쪽 메뉴\n- 추가·취소: 행 추가·되돌리기\n- 변경 내용 저장을 눌러 확정")
+                draft, save_requested = interactive_table(book)
+                save_clicked = st.button("변경 내용 저장", key=prefix + "_save", type="primary")
+                if save_requested or save_clicked:
+                    new_id = save_table_draft(store, book, draft, generate_definitions=generate_definitions)
+            elif operation == "분류 통합":
+                st.caption("같은 의미의 분류만 통합하세요. 함께 조회하려면 결과 화면의 묶어보기를 사용하세요.")
                 selected = st.multiselect("통합할 세부분류", list(labels), format_func=labels.get, key=prefix + "_merge_ids")
                 st.dataframe(pd.DataFrame([{"분류": labels[c.id], "기준": c.definition} for c in book["codes"] if c.id in selected]),
                              hide_index=True, width="stretch")
@@ -51,7 +52,8 @@ def show_codebook_changes(store, book, with_ai):
                     new_id = split_code(store, book["id"], source, edited.astype(object).where(pd.notna(edited), None).to_dict("records"),
                         generate_definitions=generate_definitions)
             else:
-                st.info("분리할 코드가 없습니다. 먼저 코드를 추가해주세요.")
+                st.info("분리할 분류가 없습니다. 먼저 분류를 추가해주세요.")
+            st.caption("변경된 기준은 저장 후 다시 분류하면 결과에 반영됩니다.")
             if new_id:
                 st.session_state.confirmed_book = new_id
                 st.session_state["book_notice"] = "분류 기준표 저장 완료"

@@ -6,7 +6,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from src import ai as ai_module, config
-from src.ai import AIError, PROMPT_VERSION
+from src.ai import AIError, DEFAULT_MODEL, PROMPT_VERSION
 from src.ingestion import prepare_preview, read_csv, read_excel, read_pasted_text
 from src.models import Code, CodebookDraft, CodingBatch, CodingResult, Issue, materialize_codes, validate_result
 from src.results import csv_download, result_tables
@@ -277,7 +277,13 @@ def test_unclear_response_can_be_retried():
 
 def test_app_input_to_codebook_to_results_and_reload(monkeypatch):
     monkeypatch.setattr(config, "load_gemini_key", lambda: "test-key")
-    monkeypatch.setattr(ai_module, "GeminiAI", lambda key, model: FakeAI())
+    models = []
+
+    def service(key, model):
+        models.append(model)
+        return FakeAI()
+
+    monkeypatch.setattr(ai_module, "GeminiAI", service)
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     app.button(key="preview_button").click().run()
     app.button(key="save_input").click().run()
@@ -291,6 +297,7 @@ def test_app_input_to_codebook_to_results_and_reload(monkeypatch):
     assert not app.exception and not app.error
     assert app.radio(key="nav").value == "3. 분류 결과"
     assert app.metric[0].value == "20건"
+    assert models == [DEFAULT_MODEL, DEFAULT_MODEL]
     fresh = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     fresh.radio(key="nav").set_value("3. 분류 결과").run()
     assert fresh.metric[0].value == "20건" and not fresh.exception
@@ -299,6 +306,27 @@ def test_app_input_to_codebook_to_results_and_reload(monkeypatch):
     fresh.button(key="preview_button").click().run()
     fresh.button(key="save_input").click().run()
     assert not fresh.exception
+
+
+def test_app_resume_uses_saved_model_without_model_setting(monkeypatch):
+    store = Store()
+    run_id = setup_run(store, ["빠름"])
+    store.update_status(run_id, "failed", "검증용 재시도")
+    monkeypatch.setattr(config, "load_gemini_key", lambda: "test-key")
+    models = []
+
+    def service(key, model):
+        models.append(model)
+        fake = FakeAI()
+        fake.model = model
+        return fake
+
+    monkeypatch.setattr(ai_module, "GeminiAI", service)
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
+    app.radio(key="nav").set_value("3. 분류 결과").run()
+    app.button(key="resume_run").click().run()
+    assert not app.exception and not app.error
+    assert models == ["test-model"] and store.run(run_id)["status"] == "completed"
 
 
 def test_app_saved_codebook_context_survives_new_browser_session(monkeypatch):

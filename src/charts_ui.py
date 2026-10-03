@@ -1,4 +1,4 @@
-"""막대 선택을 공통 묶음 상태에 연결하는 시각화 화면."""
+"""공통 묶음 상태의 차트와 결과 해석에 필요한 집계 기준을 제공한다."""
 
 from hashlib import sha256
 from html import escape
@@ -44,7 +44,7 @@ def bar_figure(frame, label_column, id_column, measure=COUNT, sentiment_colors=F
 
 
 def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
-    st.subheader("현재 범위 시각화")
+    st.subheader("현재 범위 시각화", help="막대를 누르면 해당 범위의 원문을 조회합니다.")
     if run["status"] != "completed":
         st.info("차트는 분류와 승계 검토를 마친 실행에서 제공합니다. 현재 저장된 의견은 아래 표에서 확인하세요.")
         return
@@ -54,8 +54,7 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
     filtered = selected_ids is not None or sentiment != "전체"
     data = build_dashboard(grouped, filtered)
     denominator_label = "현재 선택 범위의 고유 VOC" if filtered else "전체 원본 응답(무응답 포함)"
-    st.caption(f"차트 비율의 분모: {denominator_label} {data.denominator}건. 복수 분류·감성은 각각 포함하므로 비율 합계가 100%를 넘을 수 있습니다.")
-    st.caption("막대를 누르면 해당 범위로 좁혀지고 아래 원문도 바뀝니다. 여러 분류를 함께 보려면 위의 묶어보기를 사용하세요.")
+    st.caption(f"비율 기준: {denominator_label} {data.denominator}건 · 복수 분류·감성으로 합계 100% 초과 가능")
     count_column, top_column = st.columns([1, 3])
     count_column.metric("현재 범위의 대분류", f"{len(data.categories)}개")
     top = data.codes.iloc[0]
@@ -99,19 +98,19 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
     with left:
         show_selectable(data.categories.head(20), "category", "대분류", "대분류", "대분류별 고유 VOC")
         if len(data.categories) > 20:
-            st.caption("상위 20개를 표시합니다. 전체 대분류는 아래 집계표에서 확인할 수 있습니다.")
+            st.caption("상위 20개 · 전체 목록은 집계표에서 확인")
     with right:
         show_selectable(data.sentiments, "sentiment", "감성", "감성", "감성이 포함된 고유 VOC")
     options = [5, 10, 20, 50]
-    top_n = st.selectbox("세부분류 TOP N", options, index=1, key=prefix + "_top_n")
+    top_n = st.selectbox("세부분류 TOP N", options, index=1, key=prefix + "_top_n",
+        help="차트에 표시할 분류 수입니다. 원문과 집계표에는 전체 분류가 포함됩니다.")
     code_frame = data.codes.head(top_n).copy()
     code_frame["분류"] = code_frame["대분류"] + " → " + code_frame["세부분류"]
     show_selectable(code_frame, "code", "분류", "코드 ID", "세부분류별 고유 VOC")
-    st.caption(f"현재 범위의 세부분류 {len(data.codes)}개 중 {len(code_frame)}개를 표시합니다. TOP N은 차트 표시 개수이며 원문 범위를 줄이지 않습니다.")
+    st.caption(f"세부분류 {len(data.codes)}개 중 {len(code_frame)}개 표시")
     scope_label = ("전체 분류" if selected_ids is None else " + ".join(
         f"{code.category} → {code.name}" for code in selected_codes if code.id in selected_ids)) + f" / 감성: {sentiment}"
     with st.expander("차트 수치·분모 확인 및 내려받기"):
-        st.caption("차트 조작 대신 위의 분류·감성 선택을 이용해도 같은 범위를 확인할 수 있습니다. 표에는 TOP N 밖의 분류도 포함됩니다.")
         for label, table in [("대분류", data.categories), ("세부분류", data.codes), ("감성", data.sentiments)]:
             st.markdown(f"**{label} 집계**")
             st.dataframe(table, hide_index=True, width="stretch", column_config={"코드 ID": None,

@@ -68,7 +68,7 @@ def test_split_identifies_incomplete_second_row(split_screen):
 def test_split_retry_saves_inherited_category_and_preserves_original(split_screen):
     store, dataset, book, app, prefix = split_screen
     before = deepcopy(store.codebook(book))
-    assert any("대분류는 기존 코드의 ‘종합 평가’로 유지됩니다." == caption.value for caption in app.caption)
+    assert any("대분류: 종합 평가" in caption.value for caption in app.caption)
     set_split_rows(app, prefix, {"name": "", "definition": ""})
     app.button(key=prefix + "_split").click().run()
     assert app.error

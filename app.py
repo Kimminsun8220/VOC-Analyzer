@@ -135,12 +135,12 @@ def codebook_screen(store, dataset):
             column_config={"id": None, **{key: st.column_config.TextColumn(label, required=True)
                 for key, label in CODE_COLUMNS.items() if key != "id"}},
             hide_index=True, width="stretch", key=f"editor_{selected}")
-        if st.button("분류 기준표 확정", key="confirm_codebook", type="primary", disabled=context.strip() != book["context"]):
+        if st.button("분류 기준표 저장", key="confirm_codebook", type="primary", disabled=context.strip() != book["context"]):
             identifier = confirm_codebook(store, selected, edited.where(pd.notna(edited), None).to_dict("records"))
             st.session_state.confirmed_book = identifier
             st.rerun()
     else:
-        show_codebook_changes(store, book, with_ai)
+        editor_container = st.container()
         prior = [run for run in store.list_runs(dataset["id"]) if run["status"] == "completed"]
         prior_labels = {run["id"]: f"{datetime.fromisoformat(run['created_at']).astimezone(timezone(timedelta(hours=9))):%Y-%m-%d %H:%M:%S}" for run in prior}
         prior_labels = unique_analysis_labels(prior_labels)
@@ -148,12 +148,14 @@ def codebook_screen(store, dataset):
         if prior:
             parent_id = st.selectbox("수정값을 가져올 이전 분석", [*prior_labels, None],
                 format_func=lambda identifier: prior_labels.get(identifier, "가져오지 않음 · 독립된 새 분석"), key=f"parent_{book['id']}")
-        classification_label = "변경된 기준으로 다시 분류" if parent_id else "고객 의견 자동 분류"
+        actions = st.container(horizontal=True, wrap=False)
+        with editor_container:
+            show_codebook_changes(store, book, with_ai, save_container=actions)
         editing = st.session_state.get(f"revise_{book['id']}_draft")
         unsaved = bool(editing and table_has_changes(book, editing))
         if unsaved:
-            st.caption("편집 중입니다. 변경 내용을 저장해주세요.")
-        if st.button(classification_label, key="start_classification", type="primary", disabled=context.strip() != book["context"] or unsaved):
+            st.caption("분류 기준표를 먼저 저장해주세요.")
+        if actions.button("분류 결과로 이동", key="start_classification", type="primary", disabled=context.strip() != book["context"] or unsaved):
             def start(ai):
                 identifier = store.create_run(dataset["id"], selected, ai.model, PROMPT_VERSION, parent_run_id=parent_id)
                 st.session_state.run_id = identifier
@@ -164,7 +166,7 @@ def codebook_screen(store, dataset):
 
 
 def run_with_progress(store, identifier, ai):
-    bar = st.progress(0, text="고객 의견 자동 분류를 준비하고 있습니다…")
+    bar = st.progress(0, text="분류 결과를 만들고 있습니다…")
     execute_run(store, identifier, ai, lambda count, total, message: bar.progress(count / max(total, 1), text=f"{message} · {count}/{total}건"))
 
 
@@ -172,7 +174,7 @@ def results_screen(store, dataset):
     st.header("분류 결과")
     runs = store.list_runs(dataset["id"])
     if not runs:
-        st.info("분류 기준표를 확정하고 고객 의견 자동 분류를 시작해주세요.")
+        st.info("분류 기준표를 저장한 뒤 ‘분류 결과로 이동’을 눌러주세요.")
         return
     labels = {run["id"]: f"{datetime.fromisoformat(run['created_at']).astimezone(timezone(timedelta(hours=9))):%Y-%m-%d %H:%M:%S} KST · {STATUS_LABELS[run['status']]}" for run in runs}
     labels = unique_analysis_labels(labels)

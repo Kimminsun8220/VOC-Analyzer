@@ -89,7 +89,11 @@ class Store:
 
     def list_datasets(self):
         with self.connect() as db:
-            return [dict(row) for row in db.execute("SELECT id,name,created_at FROM datasets ORDER BY created_at DESC")]
+            return [dict(row) for row in db.execute("""
+                SELECT id,name,created_at,
+                    EXISTS(SELECT 1 FROM runs WHERE dataset_id=d.id AND lease_until>?) AS analysis_running
+                FROM datasets d ORDER BY created_at DESC
+            """, (time.time(),))]
 
     def save_dataset(self, name, preview, frame, text_column, input_type, context):
         records = []

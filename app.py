@@ -15,7 +15,7 @@ from src.config import load_gemini_key
 from src.codebook_ui import show_codebook_changes
 from src.codebook_table import table_has_changes
 from src.corrections_ui import show_corrections
-from src.dataset_ui import clear_deleted_dataset_state, show_dataset_management
+from src.dataset_ui import clear_deleted_dataset_state, show_dataset_picker
 from src.grouping_ui import show_grouped_results
 from src.ingestion import excel_sheet_names, prepare_preview, read_csv, read_excel, read_pasted_text
 from src.results import STATUS_LABELS, csv_download, result_tables
@@ -36,6 +36,12 @@ def with_ai(action, model=None):
 
 def code_frame(codes):
     return pd.DataFrame([{key: getattr(code, key) for key in CODE_COLUMNS} for code in codes], columns=list(CODE_COLUMNS))
+
+
+def unique_analysis_labels(labels):
+    counts = Counter(labels.values())
+    return {identifier: label + (f" · 분석 {len(labels) - index}" if counts[label] > 1 else "")
+            for index, (identifier, label) in enumerate(labels.items())}
 
 
 def input_screen(store):
@@ -137,6 +143,7 @@ def codebook_screen(store, dataset):
         show_codebook_changes(store, book, with_ai)
         prior = [run for run in store.list_runs(dataset["id"]) if run["status"] == "completed"]
         prior_labels = {run["id"]: f"{datetime.fromisoformat(run['created_at']).astimezone(timezone(timedelta(hours=9))):%Y-%m-%d %H:%M:%S}" for run in prior}
+        prior_labels = unique_analysis_labels(prior_labels)
         parent_id = None
         if prior:
             parent_id = st.selectbox("수정값을 가져올 이전 분석", [*prior_labels, None],
@@ -168,6 +175,7 @@ def results_screen(store, dataset):
         st.info("분류 기준표를 확정하고 고객 의견 자동 분류를 시작해주세요.")
         return
     labels = {run["id"]: f"{datetime.fromisoformat(run['created_at']).astimezone(timezone(timedelta(hours=9))):%Y-%m-%d %H:%M:%S} KST · {STATUS_LABELS[run['status']]}" for run in runs}
+    labels = unique_analysis_labels(labels)
     key = f"result_choice_{dataset['id']}"
     pending = st.session_state.pop("run_id", None)
     if pending in labels:
@@ -234,17 +242,12 @@ def main():
         page = st.radio("분석 단계", ["1. 입력", "2. 분류 기준표", "3. 분류 결과"], key="nav")
         datasets = store.list_datasets()
         if datasets:
-            names = Counter(row["name"] for row in datasets)
-            labels = {row["id"]: row["name"] + (f" · {datetime.fromisoformat(row['created_at']).astimezone(timezone(timedelta(hours=9))):%Y-%m-%d %H:%M:%S}" if names[row["name"]] > 1 else "") for row in datasets}
-            if st.session_state.get("dataset_id") not in labels:
-                st.session_state.dataset_id = datasets[0]["id"]
-            st.selectbox("저장된 입력 자료", list(labels), format_func=labels.get, key="dataset_id")
-            show_dataset_management(store, st.session_state.dataset_id)
+            show_dataset_picker(store, datasets)
         else:
             st.session_state.pop("dataset_id", None)
             notice = st.session_state.pop("dataset_notice", None)
             if notice:
-                st.success(notice)
+                st.toast(notice)
             st.caption("저장된 입력 자료가 없습니다.")
     try:
         if page == "1. 입력":

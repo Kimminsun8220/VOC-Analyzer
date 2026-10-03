@@ -84,7 +84,7 @@ def test_export_and_figure_use_same_counts_and_record_scope(completed):
     data = dashboard(completed, ["speed", "wrong"], "부정")
     table = pd.read_csv(BytesIO(csv_download(dashboard_export(data, run, book, "배송 / 감성: 부정"))))
     assert table["분석 실행"].eq(run_id).all()
-    assert table["코드북 버전"].eq(book["version"]).all()
+    assert table["분류 기준표 버전"].eq(book["version"]).all()
     assert table["결과 개정"].eq(0).all()
     assert table[DENOMINATOR].eq(3).all()
     assert table.loc[table["집계 종류"].eq("세부분류"), COUNT].tolist() == [3]

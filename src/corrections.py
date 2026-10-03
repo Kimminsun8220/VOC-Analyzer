@@ -95,7 +95,7 @@ def save_correction(store, run_id, voc_id, rows, response_type, reason, expected
                 indices.append(int(identifier) if identifier is not None else None)
                 issues.append(Issue.model_validate(value))
             if any(item.code_id is None for item in issues):
-                raise ValueError("모든 의견에 현재 코드북의 분류를 선택해주세요.")
+                raise ValueError("모든 의견에 현재 분류 기준표의 분류를 선택해주세요.")
         after = CodingResult(voc_id=voc_id, response_type=response_type, issues=issues,
                              no_content_reason=no_content_reason.strip() if response_type == "no_content" else "")
         validate_result(after, record, store.codebook(run["codebook_id"])["codes"], run["context"])

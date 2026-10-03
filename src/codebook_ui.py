@@ -14,8 +14,8 @@ def show_codebook_changes(store, book, with_ai):
         with st.spinner("AI가 입력한 이름에 맞는 분류 기준을 채우고 있습니다…"):
             return with_ai(lambda ai: ai.code_definitions(*args), model=book["model"])
 
-    with st.expander("이 코드북 수정·통합·분리"):
-        st.caption("변경은 새 확정 버전으로 저장됩니다. 결과에 적용하려면 저장 후 전체 분류를 실행하세요.")
+    with st.expander("이 분류 기준표 수정·통합·분리"):
+        st.caption("변경은 새 확정 버전으로 저장됩니다. 결과에 적용하려면 저장 후 ‘변경된 기준으로 다시 분류’를 실행하세요.")
         operation = st.radio("변경 방법", ["이름·기준·행 편집", "같은 의미 코드 통합", "코드 분리"], key=prefix + "_mode", horizontal=True)
         labels = {c.id: f"{c.category} → {c.name}" for c in book["codes"]}
         try:
@@ -58,13 +58,13 @@ def show_codebook_changes(store, book, with_ai):
                 st.info("분리할 코드가 없습니다. 먼저 코드를 추가해주세요.")
             if new_id:
                 st.session_state.confirmed_book = new_id
-                st.session_state["book_notice"] = "새 코드북 버전을 저장했습니다. 아래에서 이전 수정값을 가져올 실행을 선택하고 전체 분류를 시작하세요."
+                st.session_state["book_notice"] = "새 분류 기준표 버전을 저장했습니다. 아래에서 이전 분석을 선택하고 ‘변경된 기준으로 다시 분류’를 누르세요."
                 st.rerun()
         except ValidationError as exc:
             fields = {"category": "대분류", "name": "세부분류 이름", "definition": "분류 기준"}
             messages = []
             for error in exc.errors(include_input=False, include_url=False):
-                label = fields.get(error["loc"][0], "코드북 항목")
+                label = fields.get(error["loc"][0], "분류 기준표 항목")
                 if error["type"] == "string_too_long":
                     messages.append(f"{label}은 {error['ctx']['max_length']}자 이하로 입력해주세요.")
                 else:

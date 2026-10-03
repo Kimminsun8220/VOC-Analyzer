@@ -13,6 +13,7 @@ import streamlit as st
 from src.ai import DEFAULT_MODEL, GeminiAI, PROMPT_VERSION
 from src.config import load_gemini_key
 from src.codebook_ui import show_codebook_changes
+from src.codebook_table import table_has_changes
 from src.corrections_ui import show_corrections
 from src.dataset_ui import clear_deleted_dataset_state, show_dataset_picker
 from src.grouping_ui import show_grouped_results
@@ -119,15 +120,13 @@ def codebook_screen(store, dataset):
         st.rerun()
     if book is None:
         return
-    st.caption(f"분류 {len(book['codes'])}개")
+    editing = st.session_state.get(f"revise_{book['id']}_draft") if book["status"] == "confirmed" else None
+    st.caption(f"분류 {len(editing['rows']) if editing else len(book['codes'])}개")
     notice = st.session_state.pop("book_notice", None)
     if notice:
         st.success(notice)
     if context.strip() != book["context"]:
         st.warning("배경이 변경되었습니다. 새 배경으로 초안을 만들어주세요.")
-    with st.expander("이 버전의 배경·생성 근거·변경 이력"):
-        st.text(book["context"] or "배경 없음")
-        st.json({"표본 VOC ID": book["sample_ids"], "코드별 근거": [c.model_dump() for c in book["codes"]], "변경 이력": book["changes"]})
     if book["status"] == "draft":
         st.subheader("초안 편집")
         with st.expander("편집 방법"):
@@ -141,7 +140,6 @@ def codebook_screen(store, dataset):
             st.session_state.confirmed_book = identifier
             st.rerun()
     else:
-        st.dataframe(code_frame(book["codes"]).rename(columns=CODE_COLUMNS), hide_index=True, width="stretch")
         show_codebook_changes(store, book, with_ai)
         prior = [run for run in store.list_runs(dataset["id"]) if run["status"] == "completed"]
         prior_labels = {run["id"]: f"{datetime.fromisoformat(run['created_at']).astimezone(timezone(timedelta(hours=9))):%Y-%m-%d %H:%M:%S}" for run in prior}
@@ -151,7 +149,11 @@ def codebook_screen(store, dataset):
             parent_id = st.selectbox("수정값을 가져올 이전 분석", [*prior_labels, None],
                 format_func=lambda identifier: prior_labels.get(identifier, "가져오지 않음 · 독립된 새 분석"), key=f"parent_{book['id']}")
         classification_label = "변경된 기준으로 다시 분류" if parent_id else "고객 의견 자동 분류"
-        if st.button(classification_label, key="start_classification", type="primary", disabled=context.strip() != book["context"]):
+        editing = st.session_state.get(f"revise_{book['id']}_draft")
+        unsaved = bool(editing and table_has_changes(book, editing))
+        if unsaved:
+            st.caption("편집 중입니다. 변경 내용을 저장해주세요.")
+        if st.button(classification_label, key="start_classification", type="primary", disabled=context.strip() != book["context"] or unsaved):
             def start(ai):
                 identifier = store.create_run(dataset["id"], selected, ai.model, PROMPT_VERSION, parent_run_id=parent_id)
                 st.session_state.run_id = identifier

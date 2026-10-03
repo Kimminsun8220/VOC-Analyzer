@@ -9,6 +9,7 @@ from src import ai as ai_module
 from src.ai import AIError, GeminiAI
 from src.ingestion import prepare_preview
 from src.models import Code, CodeDefinition, CodeDefinitions
+from src.codebook_table import table_action, visible_rows
 from src.storage import Store
 
 
@@ -27,7 +28,7 @@ def split_screen(monkeypatch):
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     app.radio(key="nav").set_value("2. 분류 기준표").run()
     prefix = f"revise_{book}"
-    app.radio(key=prefix + "_mode").set_value("코드 분리").run()
+    app.radio(key=prefix + "_mode").set_value("분류 분리").run()
     return store, dataset, book, app, prefix
 
 
@@ -158,7 +159,7 @@ def test_split_fills_only_missing_definition(split_screen, definition_ai):
 
 
 def merge_screen(app, prefix):
-    app.radio(key=prefix + "_mode").set_value("같은 의미 코드 통합").run()
+    app.radio(key=prefix + "_mode").set_value("분류 통합").run()
     app.multiselect(key=prefix + "_merge_ids").set_value(["C1", "C3"]).run()
     app.text_input(key=prefix + "_merge_name").set_value("구매 및 방문 경험")
     assert not app.button(key=prefix + "_merge").disabled
@@ -242,3 +243,41 @@ def test_missing_key_leaves_name_only_inputs_available_for_retry(split_screen, m
     assert [item.value for item in app.error] == [".env에 GEMINI_API_KEY를 먼저 입력해주세요."]
     assert len(store.list_codebooks(dataset)) == 1
     assert app.session_state[f"{prefix}_C1_split_editor"]["edited_rows"][0]["name"] == "구매 경험"
+
+
+def test_confirmed_book_has_one_visible_editor_and_saves_edits_on_reopen(split_screen):
+    store, dataset, book, app, prefix = split_screen
+    original = deepcopy(store.codebook(book))
+    app.radio(key=prefix + "_mode").set_value("표 편집").run()
+    assert not app.exception and not app.error
+    assert len(app.get("bidi_component")) == 1 and not app.dataframe
+    assert not app.get("json")
+    assert all(not block.dataframe for block in app.expander)
+    assert "이 버전의 배경·생성 근거·변경 이력" not in [block.label for block in app.expander]
+    draft = deepcopy(app.session_state[prefix + "_draft"])
+    rows = visible_rows(draft)
+    rows[0].update(category="구매", name="구매 절차", definition="구매 절차의 편의성에 관한 의견")
+    draft = table_action(draft, {"kind": "delete", "source_id": "C2", "rows": rows})
+    draft = table_action(draft, {"kind": "add", "rows": visible_rows(draft)})
+    draft["rows"][-1].update(category="제품", name="구성품", definition="구성품 제공 여부에 관한 의견")
+    app.session_state[prefix + "_draft"] = draft
+    app.run()
+    assert app.button(key="start_classification").disabled
+    app.button(key=prefix + "_save").click().run()
+    assert not app.exception and not app.error
+    revised = store.codebook(store.list_codebooks(dataset)[0]["id"])
+    assert revised["parent_id"] == book and revised["status"] == "confirmed"
+    assert [(code.category, code.name, code.definition) for code in revised["codes"]] == [
+        ("구매", "구매 절차", "구매 절차의 편의성에 관한 의견"),
+        ("종합 평가", "방문 경험", "방문 절차에 관한 의견"),
+        ("제품", "구성품", "구성품 제공 여부에 관한 의견"),
+    ]
+    assert revised["codes"][0].id == "C1"
+    assert "C2" not in {code.id for code in revised["codes"]}
+    assert store.codebook(book) == original
+    fresh = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
+    fresh.radio(key="nav").set_value("2. 분류 기준표").run()
+    assert not fresh.exception and not fresh.error
+    assert len(fresh.get("bidi_component")) == 1 and not fresh.dataframe and not fresh.get("json")
+    assert fresh.radio(key=f"revise_{revised['id']}_mode").value == "표 편집"
+    assert [row["name"] for row in fresh.session_state[f"revise_{revised['id']}_draft"]["rows"]] == ["구매 절차", "방문 경험", "구성품"]

@@ -15,6 +15,28 @@ PICKER_STYLE = """
 .st-key-dataset_dropdown [data-testid="stPopoverButton"] {
     anchor-name: --dataset-trigger;
 }
+.st-key-dataset_dropdown [data-testid="stPopoverButton"] > div {
+    width: 100%;
+    justify-content: space-between;
+}
+.st-key-dataset_dropdown [data-testid="stPopoverButton"] > div > div[title] {
+    flex: 1;
+    min-width: 0;
+}
+.st-key-dataset_dropdown [data-testid="stPopoverButton"] [data-has-shortcut],
+.st-key-dataset_dropdown_rows [class*="st-key-dataset_select_"] button [data-has-shortcut] {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+}
+.st-key-dataset_dropdown [data-testid="stPopoverButton"] [data-testid="stMarkdownContainer"],
+.st-key-dataset_dropdown_rows [class*="st-key-dataset_select_"] button [data-testid="stMarkdownContainer"] {
+    text-align: left;
+}
+.st-key-dataset_dropdown_rows [class*="st-key-dataset_select_"] button [data-has-shortcut]:not(:has([data-testid="stIconMaterial"]))::before {
+    content: "";
+    flex: 0 0 1rem;
+}
 [data-testid="stPopoverBody"]:has(.st-key-dataset_dropdown_rows) {
     position-anchor: --dataset-trigger;
     width: anchor-size(--dataset-trigger width) !important;
@@ -25,16 +47,27 @@ PICKER_STYLE = """
     background: var(--backgroundColor, white);
 }
 .st-key-dataset_dropdown_rows {
-    max-height: 24rem;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: clip;
 }
 .st-key-dataset_dropdown_rows [class*="st-key-dataset_icon_"] button p {
     font-size: 0;
 }
 .st-key-dataset_dropdown_rows [data-testid="stHorizontalBlock"] {
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: minmax(0, 76fr) minmax(24px, 12fr) minmax(24px, 12fr);
+    gap: 2px;
     align-items: center;
+}
+.st-key-dataset_dropdown_rows [data-testid="stHorizontalBlock"] > [data-testid="stElementContainer"] {
+    min-width: 0;
+}
+.st-key-dataset_dropdown_rows [class*="st-key-dataset_icon_"] button {
+    width: 100%;
+    min-width: 24px;
+    padding-inline: 0;
+}
+.st-key-dataset_dropdown_rows [class*="st-key-dataset_icon_"] button [data-has-shortcut] {
+    gap: 0;
 }
 .st-key-dataset_dropdown_rows [class*="st-key-dataset_select_"] button {
     justify-content: flex-start;
@@ -137,7 +170,7 @@ def dataset_labels(datasets):
 
 def icon_button(label, icon, action, args, key, *, disabled=False, help=None, submit=False):
     button = st.form_submit_button if submit else st.button
-    button(label, icon=f":material/{icon}:", type="tertiary", width=44,
+    button(label, icon=f":material/{icon}:", type="tertiary", width="stretch",
            key=f"dataset_icon_{key}", on_click=action, args=args,
            disabled=disabled, help=help or label)
 

@@ -1,4 +1,4 @@
-"""한 VOC를 명시적인 저장/취소 조작으로 수정하고 승계 예외를 확인한다."""
+"""VOC 수정·저장·취소와 승계 예외 확인에 필요한 조작을 제공한다."""
 
 import pandas as pd
 from pydantic import ValidationError
@@ -19,7 +19,6 @@ def issue_rows(result):
 
 def show_corrections(store, run, book, dataset):
     st.subheader("VOC 한 건 수정")
-    st.caption("코드·감성과 근거를 고치거나 의견을 추가·삭제할 수 있습니다. 저장하면 묶음 집계와 원문 표에도 반영됩니다.")
     if run["status"] not in {"completed", "needs_review"}:
         st.info("분류를 완료하거나 실패·미처리 응답을 재시도한 뒤 수정할 수 있습니다.")
         return
@@ -58,10 +57,10 @@ def show_corrections(store, run, book, dataset):
             candidate_frame = pd.DataFrame(issue_rows(current), columns=list(LABELS)).drop(columns="item_id")
             candidate_frame["code_id"] = candidate_frame["code_id"].map({c.id: f"{c.category} → {c.name}" for c in book["codes"]})
             st.dataframe(candidate_frame.rename(columns=LABELS), hide_index=True, width="stretch")
-        st.caption("아래 목록은 새 AI 후보입니다. 이전 수정 의도를 확인해 현재 기준으로 고친 뒤 저장하면 이 건의 검토가 완료됩니다.")
+        st.caption("재분류 결과를 확인한 뒤 저장해주세요.")
     else:
-        st.caption(f"현재 출처: {effective[voc_id]['source']} · 결과 개정 {run['result_revision']}")
-    with st.expander("현재 분류 기준표 확인"):
+        st.caption(f"분류 출처: {effective[voc_id]['source']}")
+    with st.expander("현재 분류 기준표의 분류 기준 확인"):
         st.dataframe(pd.DataFrame([{"대분류": c.category, "세부분류": c.name, "기준": c.definition} for c in book["codes"]]),
                      hide_index=True, width="stretch")
     nonce_key = prefix + "_nonce"
@@ -74,7 +73,8 @@ def show_corrections(store, run, book, dataset):
         labels = {code.id: f"{code.category} → {code.name}" for code in book["codes"]}
         rows, no_content_reason = [], ""
         if response_type == "opinions":
-            st.caption("셀을 더블클릭해 수정하세요. 행 왼쪽 체크박스·휴지통으로 삭제하고 ＋로 추가합니다. 원문 근거는 위 원문에서 그대로 인용하세요.")
+            with st.expander("편집 방법"):
+                st.markdown("- 수정: 셀 더블클릭\n- 삭제: 행 왼쪽 체크박스 → 휴지통\n- 추가: ＋\n- 원문 근거: 위 원문에서 인용\n- 대상·역할: 확인되지 않으면 빈칸")
             frame["code_id"] = frame["code_id"].map(labels)
             frame["subject_evidence_source"] = frame["subject_evidence_source"].map({"original": "원문", "context": "배경"})
             edited = st.data_editor(frame, num_rows="dynamic", disabled=["item_id"], hide_index=True, width="stretch",
@@ -85,7 +85,6 @@ def show_corrections(store, run, book, dataset):
                     "evidence_text": st.column_config.TextColumn("원문 근거", required=True, width="large"),
                     "subject_evidence_source": st.column_config.SelectboxColumn("대상 근거 출처", options=["원문", "배경"]),
                 })
-            st.caption("역할이 확인되지 않으면 대상·역할과 대상 근거는 비워두세요. 배경으로 해석했다면 배경 근거와 출처도 선택하세요.")
             inverse = {label: identifier for identifier, label in labels.items()}
             for row in edited.where(pd.notna(edited), None).to_dict("records"):
                 row["code_id"] = inverse.get(row["code_id"])
@@ -107,7 +106,7 @@ def show_corrections(store, run, book, dataset):
     if save:
         try:
             save_correction(store, run["id"], voc_id, rows, response_type, reason, run["result_revision"], no_content_reason)
-            st.session_state["correction_notice"] = f"{voc_id} 수정 저장 완료. 표와 묶음 집계에 반영했습니다."
+            st.session_state["correction_notice"] = f"{voc_id} 수정 저장 완료"
             st.rerun()
         except ValidationError:
             st.error("분류·감성·원문 근거를 빠짐없이 입력해주세요. 의견이 없는 경우 응답 상태를 명시적으로 바꿔주세요.")

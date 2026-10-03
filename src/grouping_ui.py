@@ -1,4 +1,4 @@
-"""같은 묶음 상태로 차트·집계·원문·근거를 함께 갱신하는 결과 화면."""
+"""같은 조회 범위를 유지하며 분류 선택·집계·원문 조작을 제공한다."""
 
 import streamlit as st
 
@@ -37,7 +37,6 @@ def show_grouped_results(store, run, book, originals, issues):
 
     with st.container(border=True):
         st.subheader("분류 묶어보기")
-        st.caption("데이터를 보면서 함께 볼 분류를 골라보세요. 선택하면 아래 차트·건수·원문이 함께 바뀝니다.")
         saved = store.list_groups(run["id"])
         if saved:
             with st.expander(f"저장한 묶음 불러오기 · {len(saved)}개"):
@@ -74,12 +73,7 @@ def show_grouped_results(store, run, book, originals, issues):
             st.info(chart_notice)
         if selected_ids is not None:
             if not selected_ids:
-                st.info("분류를 하나 이상 선택해주세요. 여러 개를 선택하면 한 묶음으로 보여줍니다.")
-            else:
-                st.caption(f"세부분류 {len(selected_ids)}개를 함께 보고 있습니다. 선택 항목의 ×로 개별 해제할 수 있습니다.")
-        if sentiment != "전체":
-            st.caption(f"현재 선택한 분류의 ‘{sentiment}’ 의견만 조회합니다.")
-        st.caption("분류 기준표와 기존 분류는 유지됩니다. 묶어보기에는 AI를 다시 호출하지 않습니다.")
+                st.info("함께 볼 분류를 선택해주세요.")
 
     grouped = group_results(originals, issues, codes, selected_ids, sentiment)
     if run["status"] != "completed":
@@ -87,24 +81,17 @@ def show_grouped_results(store, run, book, originals, issues):
     if selected_ids == []:
         return
     a, b, c = st.columns(3)
-    a.metric("묶음의 고유 VOC", f"{grouped.voc_count}건")
-    b.metric("전체 응답 대비", f"{grouped.percent:.1f}%")
-    c.metric("선택 범위의 의견", f"{len(grouped.issues)}개")
-    st.caption(
-        f"분모: 이 실행의 원본 응답 {grouped.total_count}건(무응답 포함). "
-        f"여러 선택 분류에 겹친 VOC {grouped.overlap_count}건도 묶음에서는 각각 1건으로 셉니다."
-    )
-    if grouped.voc_count == 0:
-        st.info("선택한 분류·감성에 해당하는 의견이 없습니다. 선택 범위를 바꿔보세요.")
+    a.metric("묶음의 고유 VOC", f"{grouped.voc_count}건", help="여러 분류에 겹쳐도 같은 응답은 1건으로 셉니다.")
+    b.metric("전체 응답 대비", f"{grouped.percent:.1f}%", help=f"무응답 포함 전체 응답 {grouped.total_count}건 기준입니다.")
+    c.metric("선택 범위의 의견", f"{len(grouped.issues)}개", help="한 응답에 여러 의견이 있을 수 있습니다.")
 
     if selected_ids is not None:
         with st.expander("선택 분류별 건수 확인"):
             st.dataframe(grouped.counts, hide_index=True, width="stretch")
-            st.caption("분류마다 고유 VOC를 셉니다. 분류 사이에 같은 VOC가 겹칠 수 있으므로 행의 건수 합계는 묶음 건수와 다를 수 있습니다.")
+            st.caption(f"분류 간 중복 VOC {grouped.overlap_count}건 · 분류별 건수는 중복 포함")
         if selected_ids and run["status"] == "completed":
             with st.expander("이 조합을 저장해 다시 보기"):
                 name = st.text_input("묶음 이름", max_chars=80, placeholder="예: 배송 경험", key=f"{prefix}_name")
-                st.caption("선택한 세부분류와 감성 조건을 이 분석 실행에 저장합니다.")
                 if st.button("묶음 저장", key=f"{prefix}_save", disabled=not name.strip()):
                     try:
                         store.save_group(run["id"], name, selected_ids, sentiment)
@@ -138,7 +125,6 @@ def show_grouped_results(store, run, book, originals, issues):
             voc_id = st.selectbox("확인할 VOC ID", identifiers, key=detail_key)
             details = grouped.issues[grouped.issues["VOC ID"] == voc_id]
             st.text(details.iloc[0]["VOC 원문"])
-            st.caption("아래는 현재 선택한 분류·감성에 해당하는 의견입니다.")
             for item in details.to_dict("records"):
                 st.write(f"**{item['대분류']} → {item['세부분류']} · {item['감성']}**")
                 st.text(f"원문 근거: {item['원문 근거']}\n대상·역할: {item['대상·역할']}")

@@ -5,7 +5,7 @@ from urllib.error import HTTPError, URLError
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from src import config, gemini_connection
+from src import ai, config, gemini_connection
 
 APP_PATH = Path(__file__).resolve().parents[1] / "app.py"
 
@@ -76,25 +76,32 @@ def test_timeout_has_readable_error(monkeypatch):
         gemini_connection.check_gemini_connection("example-key")
 
 
-def test_app_never_connects_automatically_and_shows_no_key(monkeypatch):
+def test_app_does_not_read_credentials_or_show_connection_controls_on_visit(monkeypatch):
     calls = []
-    monkeypatch.setattr(config, "load_gemini_key", lambda: "example-secret")
-    monkeypatch.setattr(gemini_connection, "check_gemini_connection", lambda key: calls.append(key))
+
+    def load_key():
+        calls.append("key-read")
+        return "example-secret"
+
+    monkeypatch.setattr(config, "load_gemini_key", load_key)
+    monkeypatch.setattr(ai.genai, "Client", lambda *a, **k: pytest.fail("화면 조회는 API를 호출하면 안 된다"))
     app = AppTest.from_file(APP_PATH).run()
     assert calls == []
-    app.button(key="check_gemini").click().run()
-    assert calls == ["example-secret"]
-    assert "키 인증" in app.success[0].value
+    assert "check_gemini" not in [button.key for button in app.button]
+    assert "model" not in [field.key for field in app.text_input]
+    assert "Gemini 설정" not in [heading.value for heading in app.subheader]
+    assert not any(".env" in caption.value or "AI는 실행 버튼" in caption.value or "일관된 분류 기준" in caption.value for caption in app.caption)
     assert "example-secret" not in str(app)
     assert not app.exception
 
 
 def test_missing_key_does_not_make_network_request(monkeypatch):
-    calls = []
     monkeypatch.setattr(config, "load_gemini_key", lambda: "")
-    monkeypatch.setattr(gemini_connection, "check_gemini_connection", lambda key: calls.append(key))
+    monkeypatch.setattr(ai.genai, "Client", lambda *a, **k: pytest.fail("키가 없으면 API를 호출하면 안 된다"))
     app = AppTest.from_file(APP_PATH).run()
-    app.button(key="check_gemini").click().run()
-    assert calls == []
-    assert ".env" in app.warning[0].value
+    assert not app.error
+    app.button(key="preview_button").click().run()
+    app.button(key="save_input").click().run()
+    app.button(key="generate_codebook").click().run()
+    assert ".env" in app.error[0].value
     assert not app.exception

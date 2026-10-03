@@ -76,7 +76,7 @@ def dashboard_export(data, run, book, scope_label):
         table.insert(0, "집계 종류", label)
         tables.append(table)
     result = pd.concat(tables, ignore_index=True).fillna("")
-    for label, value in [("분석 실행", run["id"]), ("코드북 버전", book["version"]),
+    for label, value in [("분석 실행", run["id"]), ("분류 기준표 버전", book["version"]),
                          ("결과 개정", run["result_revision"]), ("조회 범위", scope_label)]:
         result[label] = value
     return result

@@ -13,6 +13,7 @@ from src.ai import DEFAULT_MODEL, GeminiAI, PROMPT_VERSION
 from src.config import load_gemini_key
 from src.codebook_ui import show_codebook_changes
 from src.corrections_ui import show_corrections
+from src.dataset_ui import clear_deleted_dataset_state, show_dataset_management
 from src.gemini_connection import check_gemini_connection
 from src.grouping_ui import show_grouped_results
 from src.ingestion import excel_sheet_names, prepare_preview, read_csv, read_excel, read_pasted_text
@@ -104,16 +105,16 @@ def input_screen(store):
         st.info(f"같은 본문이 반복된 추가 행 {preview.duplicate_count}건을 각각 보존했습니다.")
     st.dataframe(preview.records, hide_index=True, width="stretch")
     st.caption("파일의 빈 응답 행은 무응답으로 보존합니다. CSV 형식상의 빈 줄과 붙여넣기의 빈 줄은 세지 않습니다.")
-    if st.button("입력 저장 → 코드북으로", key="save_input", type="primary", width="stretch"):
+    if st.button("입력 저장 → 분류 기준표로", key="save_input", type="primary", width="stretch"):
         identifier = store.save_dataset(name, preview, frame, text_column, mode, context)
         st.session_state.pending_dataset = identifier
-        st.session_state.page = "2. 코드북"
+        st.session_state.page = "2. 분류 기준표"
         st.rerun()
 
 
 def codebook_screen(store, dataset):
-    st.caption("STEP 02 / 분류 기준")
-    st.header("코드북을 만들고 검토하세요")
+    st.caption("STEP 02 / 분류 기준표")
+    st.header("분류 기준표를 만들고 검토하세요")
     st.write(f"**{dataset['name']}** · 원본 응답 {len(dataset['records'])}건")
     books = store.list_codebooks(dataset["id"])
     book = None
@@ -123,25 +124,25 @@ def codebook_screen(store, dataset):
         pending = st.session_state.pop("confirmed_book", None)
         if pending in labels:
             st.session_state[choice_key] = pending
-        selected = st.selectbox("코드북 버전", list(labels), format_func=labels.get, key=choice_key)
+        selected = st.selectbox("분류 기준표 버전", list(labels), format_func=labels.get, key=choice_key)
         book = store.codebook(selected)
-    context = st.text_area("이번 코드북의 분석 배경 (선택)", value=book["context"] if book else dataset["context"],
+    context = st.text_area("이번 분류 기준표의 분석 배경 (선택)", value=book["context"] if book else dataset["context"],
         max_chars=10000, key=f"context_{book['id'] if book else dataset['id']}")
     st.caption("AI 버튼을 누르면 본문과 배경을 Gemini에 전송합니다. 초안은 최대 100건·60,000자의 표본으로 만들며 원문을 자르지 않습니다.")
-    if st.button("AI 코드북 초안 만들기", key="generate_codebook", type="primary"):
+    if st.button("AI 분류 기준표 초안 만들기", key="generate_codebook", type="primary"):
         with st.spinner("VOC 표본에서 분류 기준을 만들고 있습니다…"):
             identifier = with_ai(lambda ai: generate_codebook(store, dataset["id"], ai, context.strip()))
         st.session_state.confirmed_book = identifier
         st.rerun()
     if book is None:
-        st.info("초안을 만든 뒤 이름과 정의를 검토하고 전체 분류를 시작할 수 있습니다.")
+        st.info("초안을 만든 뒤 이름과 정의를 검토하고 고객 의견 자동 분류를 시작할 수 있습니다.")
         return
     st.caption(f"초안 생성 표본 {len(book['sample_ids'])}건 · 코드 {len(book['codes'])}개 · 모델 {book['model']}")
     notice = st.session_state.pop("book_notice", None)
     if notice:
         st.success(notice)
     if context.strip() != book["context"]:
-        st.warning("입력한 배경이 이 코드북의 배경과 다릅니다. 바뀐 배경으로 초안을 새로 만들어주세요. 기존 버전은 유지됩니다.")
+        st.warning("입력한 배경이 이 분류 기준표의 배경과 다릅니다. 바뀐 배경으로 초안을 새로 만들어주세요. 기존 버전은 유지됩니다.")
     with st.expander("이 버전의 배경·생성 근거·변경 이력"):
         st.text(book["context"] or "배경 없음")
         st.json({"표본 VOC ID": book["sample_ids"], "코드별 근거": [c.model_dump() for c in book["codes"]], "변경 이력": book["changes"]})
@@ -157,14 +158,14 @@ def codebook_screen(store, dataset):
             column_config={"id": None, **{key: st.column_config.TextColumn(label, required=True)
                 for key, label in CODE_COLUMNS.items() if key != "id"}},
             hide_index=True, width="stretch", key=f"editor_{selected}")
-        st.caption("편집한 내용은 아래 ‘코드북 확정’을 눌러야 저장됩니다. 코드 ID는 자동으로 유지됩니다.")
-        if st.button("코드북 확정", key="confirm_codebook", type="primary", disabled=context.strip() != book["context"]):
+        st.caption("편집한 내용은 아래 ‘분류 기준표 확정’을 눌러야 저장됩니다. 코드 ID는 자동으로 유지됩니다.")
+        if st.button("분류 기준표 확정", key="confirm_codebook", type="primary", disabled=context.strip() != book["context"]):
             identifier = confirm_codebook(store, selected, edited.where(pd.notna(edited), None).to_dict("records"))
             st.session_state.confirmed_book = identifier
             st.rerun()
     else:
         st.dataframe(code_frame(book["codes"]).rename(columns=CODE_COLUMNS), hide_index=True, width="stretch")
-        st.success("확정된 기준입니다. 새 의미가 발견되면 코드북 보완과 전체 재평가를 자동 진행합니다.")
+        st.success("확정된 기준입니다. 새 의미가 발견되면 분류 기준표 보완과 전체 재평가를 자동 진행합니다.")
         show_codebook_changes(store, book, with_ai)
         prior = [run for run in store.list_runs(dataset["id"]) if run["status"] == "completed"]
         prior_labels = {run["id"]: f"{run['id'][:6]} · 결과 개정 {run['result_revision']} · {run['created_at'][:19]}" for run in prior}
@@ -173,7 +174,8 @@ def codebook_screen(store, dataset):
             parent_id = st.selectbox("수정값을 가져올 이전 분석", [*prior_labels, None],
                 format_func=lambda identifier: prior_labels.get(identifier, "가져오지 않음 · 독립된 새 분석"), key=f"parent_{book['id']}")
             st.caption("선택한 실행의 시작 시점 수정값만 이어받습니다. 전체 원문을 다시 분류하며 대응이 불명확한 수정은 검토합니다.")
-        if st.button("이 코드북으로 전체 분류", key="start_classification", type="primary", disabled=context.strip() != book["context"]):
+        classification_label = "변경된 기준으로 다시 분류" if parent_id else "고객 의견 자동 분류"
+        if st.button(classification_label, key="start_classification", type="primary", disabled=context.strip() != book["context"]):
             def start(ai):
                 identifier = store.create_run(dataset["id"], selected, ai.model, PROMPT_VERSION, parent_run_id=parent_id)
                 st.session_state.run_id = identifier
@@ -184,7 +186,7 @@ def codebook_screen(store, dataset):
 
 
 def run_with_progress(store, identifier, ai):
-    bar = st.progress(0, text="전체 분류를 준비하고 있습니다…")
+    bar = st.progress(0, text="고객 의견 자동 분류를 준비하고 있습니다…")
     execute_run(store, identifier, ai, lambda count, total, message: bar.progress(count / max(total, 1), text=f"{message} · {count}/{total}건"))
 
 
@@ -193,7 +195,7 @@ def results_screen(store, dataset):
     st.header("분류 결과를 살펴보고 원문을 확인하세요")
     runs = store.list_runs(dataset["id"])
     if not runs:
-        st.info("코드북을 확정하고 전체 분류를 시작해주세요.")
+        st.info("분류 기준표를 확정하고 고객 의견 자동 분류를 시작해주세요.")
         return
     labels = {run["id"]: f"{datetime.fromisoformat(run['created_at']).astimezone(timezone(timedelta(hours=9))):%Y-%m-%d %H:%M:%S} KST · {STATUS_LABELS[run['status']]} · {run['id'][:6]}" for run in runs}
     key = f"result_choice_{dataset['id']}"
@@ -206,7 +208,7 @@ def results_screen(store, dataset):
     run = store.run(selected)
     book = store.codebook(run["codebook_id"])
     originals, issues = result_tables(store, selected)
-    st.caption(f"{dataset['name']} · 코드북 v{book['version']} · {run['model']} · 자동 보완 {run['round']}회")
+    st.caption(f"{dataset['name']} · 분류 기준표 v{book['version']} · {run['model']} · 자동 보완 {run['round']}회")
     st.caption(f"결과 개정 {run['result_revision']}" + (f" · 승계 기준 {run['parent_run_id'][:6]} / 개정 {run['parent_result_revision']}" if run["parent_run_id"] else ""))
     correction_notice = st.session_state.pop("correction_notice", None)
     if correction_notice:
@@ -227,7 +229,7 @@ def results_screen(store, dataset):
     b.metric("의견 있는 응답", f"{originals['응답 상태'].isin(['의견 있음', '맞는 코드 없음·검토 필요']).sum()}건")
     c.metric("없음·무응답·모름", f"{originals['응답 상태'].eq('없음·무응답·모름').sum()}건")
     d.metric("실패·미처리·검토", f"{(~originals['응답 상태'].isin(['의견 있음', '없음·무응답·모름'])).sum()}건")
-    with st.expander("실행에 사용한 배경과 최종 코드북"):
+    with st.expander("실행에 사용한 배경과 최종 분류 기준표"):
         st.text(run["context"] or "배경 없음")
         st.dataframe(code_frame(book["codes"]).rename(columns=CODE_COLUMNS), hide_index=True, width="stretch")
         st.json(book["changes"])
@@ -250,6 +252,7 @@ def results_screen(store, dataset):
 def main():
     st.set_page_config(page_title="AI VOC Analyzer", layout="wide")
     store = Store()
+    clear_deleted_dataset_state()
     if "page" in st.session_state:
         st.session_state.nav = st.session_state.pop("page")
     if "pending_dataset" in st.session_state:
@@ -257,15 +260,24 @@ def main():
     with st.sidebar:
         st.title("AI VOC Analyzer")
         st.caption("고객 의견에서 일관된 분류 기준을 만듭니다.")
-        page = st.radio("분석 단계", ["1. 입력", "2. 코드북", "3. 분류 결과"], key="nav")
+        page = st.radio("분석 단계", ["1. 입력", "2. 분류 기준표", "3. 분류 결과"], key="nav")
         datasets = store.list_datasets()
         if datasets:
             labels = {row["id"]: f"{row['name']} · {row['id'][:6]}" for row in datasets}
+            if st.session_state.get("dataset_id") not in labels:
+                st.session_state.dataset_id = datasets[0]["id"]
             st.selectbox("저장된 입력 자료", list(labels), format_func=labels.get, key="dataset_id")
+            show_dataset_management(store, st.session_state.dataset_id)
+        else:
+            st.session_state.pop("dataset_id", None)
+            notice = st.session_state.pop("dataset_notice", None)
+            if notice:
+                st.success(notice)
+            st.caption("저장된 입력 자료가 없습니다.")
         st.divider()
         show_gemini_settings()
         st.divider()
-        st.caption("입력·코드북·분류는 이 컴퓨터에 저장됩니다. AI는 실행 버튼을 눌렀을 때만 호출합니다.")
+        st.caption("입력·분류 기준표·분류는 이 컴퓨터에 저장됩니다. AI는 실행 버튼을 눌렀을 때만 호출합니다.")
     try:
         if page == "1. 입력":
             input_screen(store)
@@ -273,7 +285,7 @@ def main():
             st.info("먼저 입력 자료를 저장해주세요.")
         else:
             dataset = store.dataset(st.session_state.dataset_id)
-            if page == "2. 코드북":
+            if page == "2. 분류 기준표":
                 codebook_screen(store, dataset)
             else:
                 results_screen(store, dataset)

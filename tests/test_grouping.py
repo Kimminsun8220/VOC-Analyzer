@@ -75,7 +75,7 @@ def test_empty_and_unknown_selections_are_not_treated_as_all(completed):
     assert group_results(originals, issues, codes, ["quality"]).voc_count == 0
     assert group_results(originals, pd.DataFrame(), codes).percent == 0
     assert group_results(pd.DataFrame(), pd.DataFrame(), []).total_count == 0
-    with pytest.raises(ValueError, match="코드북"):
+    with pytest.raises(ValueError, match="분류 기준표"):
         group_results(originals, issues, codes, ["unknown"])
     with pytest.raises(ValueError, match="감성"):
         group_results(originals, issues, codes, sentiment="혼합")

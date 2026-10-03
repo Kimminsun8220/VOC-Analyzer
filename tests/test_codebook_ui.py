@@ -14,7 +14,7 @@ from src.storage import Store
 
 @pytest.fixture
 def split_screen(monkeypatch):
-    monkeypatch.setattr(ai_module, "GeminiAI", lambda *args: pytest.fail("코드북 수정은 AI 호출 금지"))
+    monkeypatch.setattr(ai_module, "GeminiAI", lambda *args: pytest.fail("분류 기준표 수정은 AI 호출 금지"))
     store = Store()
     frame = pd.DataFrame({"VOC": ["구매 과정은 좋았지만 영업소가 지저분했어요"], "내부 메모": ["AI 입력에서 제외"]})
     dataset = store.save_dataset("분리 검증", prepare_preview(frame, "VOC"), frame, "VOC", "test", "구매 설문")
@@ -25,7 +25,7 @@ def split_screen(monkeypatch):
     ]
     book = store.save_codebook(dataset, codes, "구매 설문", "test-model", ["V0001"], "confirmed")
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
-    app.radio(key="nav").set_value("2. 코드북").run()
+    app.radio(key="nav").set_value("2. 분류 기준표").run()
     prefix = f"revise_{book}"
     app.radio(key=prefix + "_mode").set_value("코드 분리").run()
     return store, dataset, book, app, prefix

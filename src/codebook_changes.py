@@ -24,7 +24,7 @@ def edit_codebook(store, book_id, rows):
             raise ValueError("기존 코드 ID는 변경할 수 없습니다.")
         source = original.get(identifier)
         codes.append(Code(id=identifier, category=row.get("category"), name=row.get("name"),
-            definition=row.get("definition"), reason="사용자 코드북 편집", evidence=source.evidence if source else []))
+            definition=row.get("definition"), reason="사용자 분류 기준표 편집", evidence=source.evidence if source else []))
     if [(c.id, c.category, c.name, c.definition) for c in codes] == [
             (c.id, c.category, c.name, c.definition) for c in book["codes"]]:
         raise ValueError("변경한 내용이 없습니다.")

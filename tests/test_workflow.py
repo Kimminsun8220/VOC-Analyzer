@@ -282,7 +282,7 @@ def test_app_input_to_codebook_to_results_and_reload(monkeypatch):
     app.button(key="preview_button").click().run()
     app.button(key="save_input").click().run()
     assert not app.exception
-    assert app.radio(key="nav").value == "2. 코드북"
+    assert app.radio(key="nav").value == "2. 분류 기준표"
     app.button(key="generate_codebook").click().run()
     assert not app.exception and not app.error
     app.button(key="confirm_codebook").click().run()
@@ -306,7 +306,7 @@ def test_app_saved_codebook_context_survives_new_browser_session(monkeypatch):
     dataset_id = create_dataset(store, ["빠름"], "초기 배경")
     store.save_codebook(dataset_id, [code()], "변경한 배경", "test-model", [], "confirmed")
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
-    app.radio(key="nav").set_value("2. 코드북").run()
+    app.radio(key="nav").set_value("2. 분류 기준표").run()
     assert app.text_area[0].value == "변경한 배경"
     assert not app.button(key="start_classification").disabled
     assert not app.exception
@@ -317,7 +317,7 @@ def test_draft_editor_applies_cell_edits_deletion_and_addition_on_confirmation()
     dataset_id = create_dataset(store, ["빠름", "포장이 찌그러짐"])
     draft_id = store.save_codebook(dataset_id, [code(), code("C2", "포장", "포장 상태 의견")], "", "test-model", [])
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
-    app.radio(key="nav").set_value("2. 코드북").run()
+    app.radio(key="nav").set_value("2. 분류 기준표").run()
     app.session_state[f"editor_{draft_id}"] = {
         "edited_rows": {0: {"category": "물류", "name": "도착 속도", "definition": "약속한 날짜의 도착 여부"}},
         "deleted_rows": [1],

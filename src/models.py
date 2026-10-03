@@ -103,7 +103,7 @@ def materialize_codes(draft: CodebookDraft, records: list[dict], existing: list[
     for item in draft.codes:
         for source in item.evidence:
             if source.voc_id not in originals or source.quote not in originals[source.voc_id]:
-                raise ValueError(f"코드북 근거가 원문과 일치하지 않습니다: {source.voc_id}. 이 ID의 원문을 그대로 인용해주세요.")
+                raise ValueError(f"분류 기준표 근거가 원문과 일치하지 않습니다: {source.voc_id}. 이 ID의 원문을 그대로 인용해주세요.")
         codes.append(Code(id="C" + uuid4().hex[:12], **item.model_dump()))
     validate_codes(codes)
     return codes
@@ -115,7 +115,7 @@ def validate_result(result: CodingResult, record: dict, codes: list[Code], conte
     allowed = {code.id for code in codes}
     for issue in result.issues:
         if issue.code_id is not None and issue.code_id not in allowed:
-            raise ValueError("코드북에 없는 코드 ID가 반환됐습니다.")
+            raise ValueError("분류 기준표에 없는 코드 ID가 반환됐습니다.")
         if issue.code_id is None and not issue.missing_code.strip():
             raise ValueError("맞는 코드가 없으면 누락된 의미를 설명해야 합니다.")
         if issue.code_id is not None and issue.missing_code:

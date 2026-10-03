@@ -15,6 +15,28 @@ PICKER_STYLE = """
 .st-key-dataset_dropdown [data-testid="stPopoverButton"] {
     anchor-name: --dataset-trigger;
 }
+.st-key-dataset_dropdown [data-testid="stPopoverButton"] > div {
+    width: 100%;
+    justify-content: space-between;
+}
+.st-key-dataset_dropdown [data-testid="stPopoverButton"] > div > div[title] {
+    flex: 1;
+    min-width: 0;
+}
+.st-key-dataset_dropdown [data-testid="stPopoverButton"] [data-has-shortcut],
+.st-key-dataset_dropdown_rows [class*="st-key-dataset_select_"] button [data-has-shortcut] {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+}
+.st-key-dataset_dropdown [data-testid="stPopoverButton"] [data-testid="stMarkdownContainer"],
+.st-key-dataset_dropdown_rows [class*="st-key-dataset_select_"] button [data-testid="stMarkdownContainer"] {
+    text-align: left;
+}
+.st-key-dataset_dropdown_rows [class*="st-key-dataset_select_"] button [data-has-shortcut]:not(:has([data-testid="stIconMaterial"]))::before {
+    content: "";
+    flex: 0 0 1rem;
+}
 [data-testid="stPopoverBody"]:has(.st-key-dataset_dropdown_rows) {
     position-anchor: --dataset-trigger;
     width: anchor-size(--dataset-trigger width) !important;

@@ -1,57 +1,27 @@
 """새 버전의 편집·통합·분리 조작과 결과 적용에 필요한 안내를 제공한다."""
 
-import pandas as pd
 from pydantic import ValidationError
 import streamlit as st
 
-from src.codebook_changes import edit_codebook, merge_codes, split_code
+from src.codebook_table import save_table_draft
+from src.codebook_table_ui import interactive_table
 
 
-def show_codebook_changes(store, book, with_ai):
+def show_codebook_changes(store, book, with_ai, save_container=None):
     prefix = f"revise_{book['id']}"
 
     def generate_definitions(*args):
         with st.spinner("AI가 입력한 이름에 맞는 분류 기준을 채우고 있습니다…"):
             return with_ai(lambda ai: ai.code_definitions(*args), model=book["model"])
 
-    with st.expander("이 분류 기준표 수정·통합·분리"):
-        st.caption("저장 후 ‘변경된 기준으로 다시 분류’를 실행하면 결과에 반영됩니다.")
-        operation = st.radio("변경 방법", ["이름·기준·행 편집", "같은 의미 코드 통합", "코드 분리"], key=prefix + "_mode", horizontal=True)
-        labels = {c.id: f"{c.category} → {c.name}" for c in book["codes"]}
+    with st.container():
         try:
             new_id = None
-            if operation == "이름·기준·행 편집":
-                frame = pd.DataFrame([{key: getattr(c, key) for key in ("id", "category", "name", "definition")} for c in book["codes"]],
-                                     columns=["id", "category", "name", "definition"])
-                edited = st.data_editor(frame, num_rows="dynamic", disabled=["id"], hide_index=True, width="stretch", key=prefix + "_editor",
-                    column_config={"id": None, "category": "대분류", "name": "세부분류", "definition": "분류 기준"})
-                if st.button("편집 내용으로 새 버전 저장", key=prefix + "_save"):
-                    new_id = edit_codebook(store, book["id"], edited.astype(object).where(pd.notna(edited), None).to_dict("records"))
-            elif operation == "같은 의미 코드 통합":
-                st.caption("같은 의미의 코드만 통합하세요. 함께 조회하려면 결과 화면의 묶어보기를 사용하세요.")
-                selected = st.multiselect("통합할 세부분류", list(labels), format_func=labels.get, key=prefix + "_merge_ids")
-                st.dataframe(pd.DataFrame([{"분류": labels[c.id], "기준": c.definition} for c in book["codes"] if c.id in selected]),
-                             hide_index=True, width="stretch")
-                name = st.text_input("통합 후 이름", key=prefix + "_merge_name")
-                definition = st.text_area("통합 후 분류 기준 (선택)", key=prefix + "_merge_definition",
-                    help="비워두면 저장할 때 AI가 기존 기준과 원문을 참고해 채웁니다. 직접 입력한 기준은 그대로 사용합니다.")
-                if st.button("통합한 새 버전 저장", key=prefix + "_merge", disabled=len(selected) < 2):
-                    new_id = merge_codes(store, book["id"], selected, name, definition, generate_definitions=generate_definitions)
-            elif labels:
-                source = st.selectbox("분리할 세부분류", list(labels), format_func=labels.get, key=prefix + "_split_id")
-                code = next(c for c in book["codes"] if c.id == source)
-                st.write(code.definition)
-                st.caption(f"대분류: {code.category} · 새 세부분류를 두 개 이상 입력하세요.")
-                edited = st.data_editor(pd.DataFrame([{"name": "", "definition": ""}] * 2), num_rows="dynamic", hide_index=True,
-                    width="stretch", key=f"{prefix}_{source}_split_editor", column_config={
-                        "name": st.column_config.TextColumn("새 세부분류", required=True, max_chars=80),
-                        "definition": st.column_config.TextColumn("분류 기준 (선택)", max_chars=1500,
-                            help="비워두면 AI가 기존 기준과 원문을 참고해 채웁니다.")})
-                if st.button("분리한 새 버전 저장", key=prefix + "_split"):
-                    new_id = split_code(store, book["id"], source, edited.astype(object).where(pd.notna(edited), None).to_dict("records"),
-                        generate_definitions=generate_definitions)
-            else:
-                st.info("분리할 코드가 없습니다. 먼저 코드를 추가해주세요.")
+            draft, save_requested = interactive_table(book)
+            save_target = save_container if save_container is not None else st
+            save_clicked = save_target.button("분류 기준표 저장", key=prefix + "_save", type="primary")
+            if save_requested or save_clicked:
+                new_id = save_table_draft(store, book, draft, generate_definitions=generate_definitions)
             if new_id:
                 st.session_state.confirmed_book = new_id
                 st.session_state["book_notice"] = "분류 기준표 저장 완료"

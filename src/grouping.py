@@ -31,7 +31,7 @@ def group_results(originals, issues, codes, selected_ids=None, sentiment="전체
         raise ValueError("허용된 감성을 선택해주세요.")
     code_map = {code.id: code for code in codes}
     if selected_ids is not None and set(selected_ids) - code_map.keys():
-        raise ValueError("현재 실행의 코드북에 없는 분류입니다. 선택을 다시 확인해주세요.")
+        raise ValueError("현재 실행의 분류 기준표에 없는 분류입니다. 선택을 다시 확인해주세요.")
     filtered = issues.copy()
     if filtered.empty:
         filtered = filtered.reindex(columns=list(dict.fromkeys([

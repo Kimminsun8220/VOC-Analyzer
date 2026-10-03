@@ -34,7 +34,7 @@ def bar_figure(frame, label_column, id_column, measure=COUNT, sentiment_colors=F
     maximum = max(values, default=0)
     fig.update_layout(height=max(280, min(1500, 42 * len(labels) + 60)), margin=dict(l=12, r=120, t=16, b=40),
         template="plotly_white", showlegend=False, clickmode="event+select", dragmode=False,
-        font=dict(family="Malgun Gothic, Noto Sans KR, sans-serif", size=13, color="#0F172A"),
+        font=dict(family="Pretendard Variable, Pretendard, sans-serif", size=13, color="#0F172A"),
         xaxis=dict(title="고유 VOC 수 (건)" if measure == COUNT else "현재 범위 내 비율 (%)", rangemode="tozero",
                    range=[0, max(maximum * 1.12, 1)], ticksuffix="" if measure == COUNT else "%", fixedrange=True,
                    dtick=1 if measure == COUNT and maximum <= 10 else None),

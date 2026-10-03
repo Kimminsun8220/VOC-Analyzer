@@ -47,7 +47,7 @@ def show_grouped_results(store, run, book, originals, issues):
                 if st.button("선택한 묶음 불러오기", key=f"{prefix}_load"):
                     group = saved_map[choice]
                     if group["codebook_id"] != book["id"] or set(group["code_ids"]) - labels.keys():
-                        st.warning("다른 코드북 버전에서 저장한 묶음입니다. 현재 분류에서 다시 선택해주세요.")
+                        st.warning("다른 분류 기준표 버전에서 저장한 묶음입니다. 현재 분류에서 다시 선택해주세요.")
                     else:
                         st.session_state[mode_key] = MODES[2]
                         st.session_state[codes_key] = group["code_ids"]
@@ -79,7 +79,7 @@ def show_grouped_results(store, run, book, originals, issues):
                 st.caption(f"세부분류 {len(selected_ids)}개를 함께 보고 있습니다. 선택 항목의 ×로 개별 해제할 수 있습니다.")
         if sentiment != "전체":
             st.caption(f"현재 선택한 분류의 ‘{sentiment}’ 의견만 조회합니다.")
-        st.caption("코드북과 기존 분류는 유지됩니다. 묶어보기에는 AI를 다시 호출하지 않습니다.")
+        st.caption("분류 기준표와 기존 분류는 유지됩니다. 묶어보기에는 AI를 다시 호출하지 않습니다.")
 
     grouped = group_results(originals, issues, codes, selected_ids, sentiment)
     if run["status"] != "completed":

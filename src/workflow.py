@@ -1,4 +1,4 @@
-"""저장된 상태를 따라 코드북 생성 → 전체 분류 → 누락 코드 보완을 진행한다."""
+"""저장된 상태를 따라 분류 기준표 생성 → 전체 분류 → 누락 코드 보완을 진행한다."""
 
 import random
 from uuid import uuid4
@@ -44,7 +44,7 @@ def generate_codebook(store, dataset_id, ai, context):
         except ValueError as exc:
             feedback = str(exc)
             if attempt == 2:
-                raise ValueError("코드북 근거·중복 검증에 실패했습니다. 초안을 다시 생성해주세요.") from None
+                raise ValueError("분류 기준표 근거·중복 검증에 실패했습니다. 초안을 다시 생성해주세요.") from None
     return store.save_codebook(dataset_id, codes, context, ai.model, [r["id"] for r in sample])
 
 
@@ -118,7 +118,7 @@ def _execute(store, run_id, ai, progress):
                     voc_id=row["id"], response_type="no_content", no_content_reason="빈 본문(무응답)"))
         pending = [row for row in pending if row["text"].strip()]
         completed = len(records) - len(pending)
-        progress(completed, len(records), f"코드북 v{book['version']} · 전체 분류")
+        progress(completed, len(records), f"분류 기준표 v{book['version']} · 고객 의견 자동 분류")
         for batch in batches(pending):
             feedback = {row["id"]: saved[row["id"]]["error"] for row in batch
                         if row["id"] in saved and saved[row["id"]]["error"]}
@@ -139,7 +139,7 @@ def _execute(store, run_id, ai, progress):
                 except ValueError as exc:
                     store.save_result(run_id, run["round"], record["id"], error=str(exc))
                 completed += 1
-            progress(completed, len(records), f"코드북 v{book['version']} · 전체 분류")
+            progress(completed, len(records), f"분류 기준표 v{book['version']} · 고객 의견 자동 분류")
         apply_inheritance(store, run_id)
         results = store.effective_results(run_id)
         if any(row["status"] == "failed" for row in results) or len(results) != len(records):
@@ -155,7 +155,7 @@ def _execute(store, run_id, ai, progress):
         if run["round"] >= run["round_limit"]:
             store.update_status(run_id, "needs_review", "자동 보완 상한에 도달했습니다. 맞는 코드가 없는 의견을 검토하거나 보완을 이어서 실행해주세요.")
             return
-        progress(len(records), len(records), "누락 의미 비교 · 코드북 자동 보완")
+        progress(len(records), len(records), "누락 의미 비교 · 분류 기준표 자동 보완")
         sources = ai_records([row for row in records if row["id"] in {c["voc_id"] for c in candidates}])
         # 후보도 소규모로 묶고 각 호출에 직전 추가까지 전달해 중복 생성을 줄인다.
         expanded = list(book["codes"])

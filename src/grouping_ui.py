@@ -12,7 +12,7 @@ MODES = ["전체 보기", "대분류로 묶기", "세부분류 직접 선택"]
 def show_grouped_results(store, run, book, originals, issues):
     prefix = f"group_{run['id']}_{book['id']}"
     codes = book["codes"]
-    labels = {code.id: f"{code.category} → {code.name}" for code in codes}
+    labels = {code.id: f"[{code.category}] {code.name}" for code in codes}
     mode_key, category_key, codes_key, sentiment_key = [f"{prefix}_{key}" for key in ("mode", "categories", "codes", "sentiment")]
 
     def clear_chart_history():
@@ -126,7 +126,7 @@ def show_grouped_results(store, run, book, originals, issues):
             details = grouped.issues[grouped.issues["VOC ID"] == voc_id]
             st.text(details.iloc[0]["VOC 원문"])
             for item in details.to_dict("records"):
-                st.write(f"**{item['대분류']} → {item['세부분류']} · {item['감성']}**")
+                st.write(f"**[{item['대분류']}] {item['세부분류']} · {item['감성']}**")
                 st.text(f"원문 근거: {item['원문 근거']}\n대상·역할: {item['대상·역할']}")
                 if item["배경 근거"]:
                     st.text(f"배경 근거: {item['배경 근거']}")

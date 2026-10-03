@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+.local/
+data/*.db
+data/*.db-*
+data/private/
+학습내용/
+/plan.md
+/Learning.md

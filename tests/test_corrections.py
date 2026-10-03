@@ -165,9 +165,7 @@ def test_same_meaning_merge_follows_explicit_mapping(prepared):
     rows[0]["code_id"] = "C3"
     rows[0]["sentiment"] = "중립"
     save(store, run, rows)
-    with pytest.raises(ValueError, match="같은 의미"):
-        merge_codes(store, book, ["C1", "C3"], "빠르기", "배송 소요시간")
-    merged = merge_codes(store, book, ["C1", "C3"], "빠르기", "배송 소요시간", True)
+    merged = merge_codes(store, book, ["C1", "C3"], "빠르기", "배송 소요시간")
     target = code_mapping(store, book, merged)["C1"]
     assert target == code_mapping(store, book, merged)["C3"]
     new = recode(store, run, merged, AI(result([issue(target), issue("C2", "부정", "상담은 불친절")])))

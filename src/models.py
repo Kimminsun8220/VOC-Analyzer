@@ -34,6 +34,15 @@ class CodebookDraft(Contract):
     codes: list[DraftCode]
 
 
+class CodeDefinition(Contract):
+    target_index: int = Field(ge=0)
+    definition: str = Field(min_length=1, max_length=1500)
+
+
+class CodeDefinitions(Contract):
+    definitions: list[CodeDefinition]
+
+
 class Issue(Contract):
     code_id: str | None
     sentiment: Sentiment

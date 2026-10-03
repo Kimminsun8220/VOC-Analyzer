@@ -42,6 +42,13 @@ PICKER_STYLE = """
 .st-key-dataset_dropdown_rows [data-testid="stTextInput"] input {
     min-width: 0;
 }
+.st-key-dataset_dropdown_rows [data-testid="stTextInputRootElement"] {
+    border: 1px solid var(--primaryColor, #1E40AF);
+    border-radius: 0.5rem;
+}
+.st-key-dataset_dropdown_rows [data-testid="stTextInputRootElement"]:focus-within {
+    box-shadow: 0 0 0 1px var(--primaryColor, #1E40AF);
+}
 </style>
 """
 

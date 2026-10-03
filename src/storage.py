@@ -1,4 +1,4 @@
-"""SQLite 입력·코드북·AI 스냅샷, 별도 사용자 수정 이력, 조회 묶음을 보존한다."""
+"""SQLite 입력·분류 기준표·AI 스냅샷, 별도 사용자 수정 이력, 조회 묶음을 보존한다."""
 
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -108,9 +108,53 @@ class Store:
 
     def dataset(self, identifier):
         with self.connect() as db:
-            row = dict(db.execute("SELECT * FROM datasets WHERE id=?", (identifier,)).fetchone())
+            saved = db.execute("SELECT * FROM datasets WHERE id=?", (identifier,)).fetchone()
+            if saved is None:
+                raise ValueError("입력 자료를 찾을 수 없습니다. 목록을 새로고침해주세요.")
+            row = dict(saved)
         row["records"] = json.loads(row.pop("records_json"))
         return row
+
+    def dataset_summary(self, identifier):
+        with self.connect() as db:
+            row = db.execute("""
+                SELECT d.id, d.name, d.created_at, d.input_type, d.records_json,
+                    (SELECT COUNT(*) FROM codebooks WHERE dataset_id=d.id) AS codebook_count,
+                    (SELECT COUNT(*) FROM runs WHERE dataset_id=d.id) AS run_count,
+                    (SELECT COUNT(*) FROM corrections c JOIN runs r ON r.id=c.run_id
+                        WHERE r.dataset_id=d.id) AS correction_count,
+                    (SELECT COUNT(*) FROM result_groups g JOIN runs r ON r.id=g.run_id
+                        WHERE r.dataset_id=d.id) AS group_count,
+                    EXISTS(SELECT 1 FROM runs WHERE dataset_id=d.id AND lease_until>?) AS analysis_running
+                FROM datasets d WHERE d.id=?
+            """, (time.time(), identifier)).fetchone()
+            if row is None:
+                raise ValueError("입력 자료를 찾을 수 없습니다. 목록을 새로고침해주세요.")
+        summary = dict(row)
+        summary["record_count"] = len(json.loads(summary.pop("records_json")))
+        return summary
+
+    def rename_dataset(self, identifier, name):
+        name = name.strip()
+        if not name or len(name) > 100:
+            raise ValueError("자료 이름을 1~100자로 입력해주세요.")
+        with self.connect() as db:
+            if not db.execute("UPDATE datasets SET name=? WHERE id=?", (name, identifier)).rowcount:
+                raise ValueError("입력 자료를 찾을 수 없습니다. 목록을 새로고침해주세요.")
+
+    def delete_dataset(self, identifier):
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if not db.execute("SELECT 1 FROM datasets WHERE id=?", (identifier,)).fetchone():
+                raise ValueError("입력 자료를 찾을 수 없습니다. 목록을 새로고침해주세요.")
+            if db.execute("SELECT 1 FROM runs WHERE dataset_id=? AND lease_until>?",
+                          (identifier, time.time())).fetchone():
+                raise ValueError("분류가 진행 중인 자료는 삭제할 수 없습니다. 완료 후 다시 시도해주세요.")
+            for table in ("corrections", "result_groups", "results"):
+                db.execute(f"DELETE FROM {table} WHERE run_id IN (SELECT id FROM runs WHERE dataset_id=?)", (identifier,))
+            db.execute("DELETE FROM runs WHERE dataset_id=?", (identifier,))
+            db.execute("DELETE FROM codebooks WHERE dataset_id=?", (identifier,))
+            db.execute("DELETE FROM datasets WHERE id=?", (identifier,))
 
     def _save_codebook(self, db, dataset_id, codes, context, model, sample_ids, status, parent_id, changes, constraints):
         validate_codes(codes)
@@ -142,7 +186,7 @@ class Store:
     def create_run(self, dataset_id, codebook_id, model, prompt_version, parent_run_id=None):
         book = self.codebook(codebook_id)
         if book["dataset_id"] != dataset_id or book["status"] != "confirmed":
-            raise ValueError("이 자료의 확정된 코드북을 선택해주세요.")
+            raise ValueError("이 자료의 확정된 분류 기준표를 선택해주세요.")
         identifier = uuid4().hex
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -272,7 +316,7 @@ class Store:
         codes = self.codebook(run["codebook_id"])["codes"]
         selected = set(code_ids)
         if not selected or selected - {code.id for code in codes}:
-            raise ValueError("현재 코드북에서 하나 이상의 분류를 선택해주세요.")
+            raise ValueError("현재 분류 기준표에서 하나 이상의 분류를 선택해주세요.")
         identifier = uuid4().hex
         with self.connect() as db:
             try:

@@ -8,8 +8,10 @@ import pytest
 from src.chart_data import COUNT, DENOMINATOR, PERCENT, build_dashboard, chart_selection_values, dashboard_export, selection_scope
 from src.charts_ui import bar_figure
 from src.grouping import group_results
-from src.models import CodingResult
+from src.ingestion import prepare_preview
+from src.models import Code, CodingResult, Issue
 from src.results import csv_download, result_tables
+from src.storage import Store
 from test_corrections import prepared, rows_for, save
 from test_grouping import completed, metric_value, open_results
 
@@ -126,6 +128,52 @@ def test_ui_no_charts_for_unfinished_or_empty_results(completed, monkeypatch):
     app.run()
     assert not app.get("plotly_chart") and not app.exception and not app.error
     assert metric_value(app, "묶음의 고유 VOC") == "0건"
+
+
+@pytest.mark.parametrize("counts, expected_rows", [
+    ([3, 3, 2, 2, 2, 2, 1], 6),
+    ([3, 3, 2, 2, 1, 1, 1], 7),
+    ([7, 6, 5, 4, 3, 2, 1], 5),
+    ([2, 2, 2, 2, 2, 2, 2], 7),
+    ([2, 1], 2),
+])
+def test_ui_top_n_keeps_boundary_ties_in_both_measures(counts, expected_rows, monkeypatch):
+    store = Store()
+    frame = pd.DataFrame({"VOC": [f"의견 {index}" for index in range(max(counts))]})
+    dataset_id = store.save_dataset("동률 검증", prepare_preview(frame, "VOC"), frame, "VOC", "검증", "")
+    codes = [Code(id=f"C{index:02d}", category="제품", name=f"분류 {index:02d}", definition=f"분류 {index:02d}에 해당하는 의견", reason="검증")
+             for index in range(len(counts))]
+    book_id = store.save_codebook(dataset_id, codes, "", "test-model", [], "confirmed")
+    run_id = store.create_run(dataset_id, book_id, "test-model", "test")
+    for index, text in enumerate(frame["VOC"]):
+        result = CodingResult(voc_id=f"V{index + 1:04d}", response_type="opinions", issues=[
+            Issue(code_id=code.id, sentiment="긍정", evidence_text=text)
+            for code, count in zip(codes, counts) if index < count])
+        store.save_result(run_id, 0, result.voc_id, result)
+    store.update_status(run_id, "completed")
+    before = deepcopy(store.results(run_id))
+    app, prefix = open_results((store, run_id, codes), monkeypatch)
+    app.selectbox(key=prefix + "_top_n").set_value(5).run()
+    chart = chart_specs(app)[2]["data"][0]
+    assert chart["x"] == counts[:expected_rows]
+    extra = expected_rows - 5
+    notices = [caption.value for caption in app.caption if "동률로" in caption.value]
+    assert len(notices) == (1 if extra > 0 else 0)
+    if extra > 0:
+        assert notices[0] == f"동률로 {extra}개 더 표시했습니다."
+    assert not any("개 중" in caption.value and "개 표시" in caption.value for caption in app.caption)
+    assert metric_value(app, "묶음의 고유 VOC") == f"{max(counts)}건"
+    app.radio(key=prefix + "_measure").set_value("범위 내 비율").run()
+    assert chart_specs(app)[2]["data"][0]["x"] == pytest.approx([
+        count / max(counts) * 100 for count in counts[:expected_rows]])
+    app.selectbox(key=prefix + "_top_n").set_value(10).run()
+    assert len(chart_specs(app)[2]["data"][0]["x"]) == len(counts)
+    assert not any("동률로" in caption.value for caption in app.caption)
+    # 추가로 표시된 분류도 원문 조회에 사용할 수 있어야 한다.
+    app.radio(key=prefix + "_mode").set_value("세부분류 직접 선택").run()
+    app.multiselect(key=prefix + "_codes").set_value([codes[expected_rows - 1].id]).run()
+    assert metric_value(app, "묶음의 고유 VOC") == f"{counts[expected_rows - 1]}건"
+    assert store.results(run_id) == before and not app.exception and not app.error
 
 
 def test_manual_correction_refreshes_charts_exports_and_selection_revision(prepared, monkeypatch):

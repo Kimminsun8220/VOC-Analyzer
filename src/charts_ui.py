@@ -12,6 +12,8 @@ from src.chart_data import COUNT, PERCENT, DENOMINATOR, build_dashboard, chart_s
 from src.results import csv_download
 
 SENTIMENT_COLORS = {"긍정": "#2563EB", "부정": "#C2410C", "중립": "#64748B", "판단 불가": "#7C3AED"}
+PRIMARY_FONT = {"family": "Pretendard Variable, Pretendard, sans-serif", "size": 14, "color": "#0F172A", "weight": 500}
+SECONDARY_FONT = {**PRIMARY_FONT, "size": 12, "color": "#64748B", "weight": 400}
 CONFIG = {"displaylogo": False, "scrollZoom": False, "modeBarButtonsToRemove": ["lasso2d", "select2d", "zoom2d", "pan2d"],
           "toImageButtonOptions": {"format": "png", "filename": "voc_chart", "scale": 2}}
 
@@ -29,16 +31,18 @@ def bar_figure(frame, label_column, id_column, measure=COUNT, sentiment_colors=F
         hover += "<br>대분류 내 %{customdata[5]:.1f}%"
     colors = [SENTIMENT_COLORS[label] for label in labels] if sentiment_colors else "#1E40AF"
     fig = go.Figure(go.Bar(x=values, y=list(range(len(labels))), orientation="h", customdata=custom,
-        marker_color=colors, text=text, textposition="outside", cliponaxis=False, hovertemplate=hover + "<extra></extra>",
+        marker_color=colors, text=text, textfont=PRIMARY_FONT, textposition="outside", cliponaxis=False,
+        hovertemplate=hover + "<extra></extra>",
         selected={"marker": {"opacity": 1}}, unselected={"marker": {"opacity": 0.65}}))
     maximum = max(values, default=0)
     fig.update_layout(height=max(280, min(1500, 42 * len(labels) + 60)), margin=dict(l=12, r=120, t=16, b=40),
         template="plotly_white", showlegend=False, clickmode="event+select", dragmode=False,
-        font=dict(family="Pretendard Variable, Pretendard, sans-serif", size=13, color="#0F172A"),
-        xaxis=dict(title="고유 VOC 수 (건)" if measure == COUNT else "현재 범위 내 비율 (%)", rangemode="tozero",
+        font=PRIMARY_FONT,
+        xaxis=dict(title=dict(text="고유 VOC 수 (건)" if measure == COUNT else "현재 범위 내 비율 (%)",
+                              font=SECONDARY_FONT), tickfont=SECONDARY_FONT, rangemode="tozero",
                    range=[0, max(maximum * 1.12, 1)], ticksuffix="" if measure == COUNT else "%", fixedrange=True,
                    dtick=1 if measure == COUNT and maximum <= 10 else None),
-        yaxis=dict(tickmode="array", tickvals=list(range(len(labels))), ticktext=safe_labels,
+        yaxis=dict(tickmode="array", tickvals=list(range(len(labels))), ticktext=safe_labels, tickfont=PRIMARY_FONT,
                    autorange="reversed", automargin=True, fixedrange=True), bargap=0.32)
     return fig
 
@@ -67,8 +71,16 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
     scope_signature = sha256(json.dumps([sorted(selected_ids) if selected_ids is not None else None, sentiment,
         run["result_revision"], st.session_state.get(prefix + "_chart_epoch", 0)], ensure_ascii=False).encode()).hexdigest()[:16]
 
-    def show_selectable(frame, kind, label, identifier, title):
+    def show_selectable(frame, kind, label, identifier, title, notice=None):
         st.markdown(f"**{title}**")
+        if notice:
+            with st.container(key=prefix + "_tie_notice"):
+                st.html(f"""<style>
+                    .st-key-{prefix}_tie_notice [data-testid="stCaptionContainer"] p {{
+                        font-size: 12px; font-weight: 400; color: #64748B;
+                    }}
+                </style>""")
+                st.caption(notice)
         chart_key = f"{prefix}_{kind}_chart_{scope_signature}_{len(frame)}_{measure}"
 
         def on_select():
@@ -103,13 +115,14 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
         show_selectable(data.sentiments, "sentiment", "감성", "감성", "감성이 포함된 고유 VOC")
     options = [5, 10, 20, 50]
     top_n = st.selectbox("세부분류 TOP N", options, index=1, key=prefix + "_top_n",
-        help="차트에 표시할 분류 수입니다. 원문과 집계표에는 전체 분류가 포함됩니다.")
-    code_frame = data.codes.head(top_n).copy()
-    code_frame["분류"] = code_frame["대분류"] + " → " + code_frame["세부분류"]
-    show_selectable(code_frame, "code", "분류", "코드 ID", "세부분류별 고유 VOC")
-    st.caption(f"세부분류 {len(data.codes)}개 중 {len(code_frame)}개 표시")
+        help="마지막 순위와 동률인 분류는 모두 표시합니다. 원문과 집계표에는 전체 분류가 포함됩니다.")
+    code_frame = data.codes.nlargest(top_n, COUNT, keep="all").copy()
+    code_frame["분류"] = "[" + code_frame["대분류"] + "] " + code_frame["세부분류"]
+    extra_count = len(code_frame) - top_n
+    show_selectable(code_frame, "code", "분류", "코드 ID", "세부분류별 고유 VOC",
+        notice=f"동률로 {extra_count}개 더 표시했습니다." if extra_count > 0 else None)
     scope_label = ("전체 분류" if selected_ids is None else " + ".join(
-        f"{code.category} → {code.name}" for code in selected_codes if code.id in selected_ids)) + f" / 감성: {sentiment}"
+        f"[{code.category}] {code.name}" for code in selected_codes if code.id in selected_ids)) + f" / 감성: {sentiment}"
     with st.expander("차트 수치·분모 확인 및 내려받기"):
         for label, table in [("대분류", data.categories), ("세부분류", data.codes), ("감성", data.sentiments)]:
             st.markdown(f"**{label} 집계**")

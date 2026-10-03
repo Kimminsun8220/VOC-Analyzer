@@ -50,7 +50,7 @@ def group_results(originals, issues, codes, selected_ids=None, sentiment="전체
             raise ValueError("분류 결과에 해당하는 원문이 없습니다.")
         unique_rows.append({
             "VOC ID": voc_id, "VOC 원문": original_map[voc_id],
-            "선택된 분류": " / ".join(dict.fromkeys(opinions["대분류"] + " → " + opinions["세부분류"])),
+            "선택된 분류": " / ".join(dict.fromkeys("[" + opinions["대분류"] + "] " + opinions["세부분류"])),
             "선택 의견의 감성": " · ".join(s for s in SENTIMENTS[1:] if s in set(opinions["감성"])),
             "선택 의견 수": len(opinions),
         })

@@ -46,7 +46,7 @@ def show_corrections(store, run, book, dataset):
             st.write("**이전 수정 기록**")
             source = previous["previous"]
             source_result = CodingResult.model_validate(source["result"])
-            source_labels = {c.id: f"{c.category} → {c.name}" for c in store.codebook(source["codebook_id"])["codes"]}
+            source_labels = {c.id: f"[{c.category}] {c.name}" for c in store.codebook(source["codebook_id"])["codes"]}
             source_frame = pd.DataFrame(issue_rows(source_result), columns=list(LABELS)).drop(columns="item_id")
             source_frame["code_id"] = source_frame["code_id"].map(source_labels)
             st.write("내용 없음·무응답" if source_result.response_type == "no_content" else "의견 있음")
@@ -55,7 +55,7 @@ def show_corrections(store, run, book, dataset):
             st.dataframe(source_frame.rename(columns=LABELS), hide_index=True, width="stretch")
             st.write("**새 분류 기준표의 AI 후보**")
             candidate_frame = pd.DataFrame(issue_rows(current), columns=list(LABELS)).drop(columns="item_id")
-            candidate_frame["code_id"] = candidate_frame["code_id"].map({c.id: f"{c.category} → {c.name}" for c in book["codes"]})
+            candidate_frame["code_id"] = candidate_frame["code_id"].map({c.id: f"[{c.category}] {c.name}" for c in book["codes"]})
             st.dataframe(candidate_frame.rename(columns=LABELS), hide_index=True, width="stretch")
         st.caption("재분류 결과를 확인한 뒤 저장해주세요.")
     else:
@@ -70,7 +70,7 @@ def show_corrections(store, run, book, dataset):
         index=1 if current.response_type == "no_content" else 0, key=edit_key + "_state")
     with st.form(edit_key + "_form"):
         frame = pd.DataFrame(issue_rows(current), columns=list(LABELS))
-        labels = {code.id: f"{code.category} → {code.name}" for code in book["codes"]}
+        labels = {code.id: f"[{code.category}] {code.name}" for code in book["codes"]}
         rows, no_content_reason = [], ""
         if response_type == "opinions":
             with st.expander("편집 방법"):

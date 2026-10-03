@@ -165,7 +165,7 @@ def codebook_screen(store, dataset):
     else:
         st.dataframe(code_frame(book["codes"]).rename(columns=CODE_COLUMNS), hide_index=True, width="stretch")
         st.success("확정된 기준입니다. 새 의미가 발견되면 코드북 보완과 전체 재평가를 자동 진행합니다.")
-        show_codebook_changes(store, book)
+        show_codebook_changes(store, book, with_ai)
         prior = [run for run in store.list_runs(dataset["id"]) if run["status"] == "completed"]
         prior_labels = {run["id"]: f"{run['id'][:6]} · 결과 개정 {run['result_revision']} · {run['created_at'][:19]}" for run in prior}
         parent_id = None

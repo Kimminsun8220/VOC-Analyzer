@@ -48,7 +48,7 @@ def unique_analysis_labels(labels):
 
 
 def input_screen(store):
-    st.header("데이터 입력")
+    st.header("데이터 입력", anchor=False)
     name = st.text_input("분석 이름", value="새 VOC 분석", max_chars=100)
     mode = st.radio("입력 방법", ["연습용 샘플", "직접 붙여넣기", "파일 업로드"], horizontal=True, key="input_mode")
     frame = None
@@ -102,8 +102,7 @@ def input_screen(store):
 
 
 def codebook_screen(store, dataset):
-    st.header("분류 기준표")
-    st.write(f"**{dataset['name']}** · 원본 응답 {len(dataset['records'])}건")
+    st.caption(f"원본 응답 {len(dataset['records'])}건")
     books = store.list_codebooks(dataset["id"])
     selected = show_codebook_picker(store, dataset["id"], books)
     book = store.codebook(selected) if selected else None
@@ -163,7 +162,6 @@ def run_with_progress(store, identifier, ai):
 
 
 def results_screen(store, dataset):
-    st.header("분류 결과")
     runs = store.list_runs(dataset["id"])
     if not runs:
         st.info("분류 기준표를 저장한 뒤 ‘이 기준표로 VOC 분류하기’를 눌러주세요.")
@@ -181,7 +179,7 @@ def results_screen(store, dataset):
     book = store.codebook(run["codebook_id"])
     originals, issues = result_tables(store, selected)
     book_name = f"{book['name']} · " if book["name"] else ""
-    st.caption(f"{dataset['name']} · 분류 기준표 {book_name}v{book['version']}")
+    st.caption(f"분류 기준표 {book_name}v{book['version']}")
     correction_notice = st.session_state.pop("correction_notice", None)
     if correction_notice:
         st.success(correction_notice)
@@ -237,26 +235,26 @@ def main():
     with st.sidebar:
         st.title("AI VOC Analyzer")
         page = st.radio("분석 단계", ["1. 입력", "2. 분류 기준표", "3. 분류 결과"], key="nav")
-        datasets = store.list_datasets()
-        if datasets:
-            show_dataset_picker(store, datasets)
-        else:
-            st.session_state.pop("dataset_id", None)
+    datasets = store.list_datasets()
+    if not datasets:
+        st.session_state.pop("dataset_id", None)
+    try:
+        if page == "1. 입력":
             notice = st.session_state.pop("dataset_notice", None)
             if notice:
                 st.toast(notice)
-            st.caption("저장된 입력 자료가 없습니다.")
-    try:
-        if page == "1. 입력":
             input_screen(store)
-        elif not datasets:
-            st.info("먼저 입력 자료를 저장해주세요.")
         else:
-            dataset = store.dataset(st.session_state.dataset_id)
-            if page == "2. 분류 기준표":
-                codebook_screen(store, dataset)
+            st.header("분류 기준표" if page == "2. 분류 기준표" else "분류 결과")
+            if not datasets:
+                st.info("먼저 입력 자료를 저장해주세요.")
             else:
-                results_screen(store, dataset)
+                show_dataset_picker(store, datasets)
+                dataset = store.dataset(st.session_state.dataset_id)
+                if page == "2. 분류 기준표":
+                    codebook_screen(store, dataset)
+                else:
+                    results_screen(store, dataset)
     except (ValueError, sqlite3.Error, OSError) as exc:
         st.error(str(exc) if isinstance(exc, ValueError) else "로컬 파일·저장소를 읽거나 저장하지 못했습니다. 접근 권한과 여유 공간을 확인해주세요.")
 

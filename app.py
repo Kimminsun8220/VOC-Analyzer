@@ -20,6 +20,7 @@ from src.grouping_ui import show_grouped_results
 from src.ingestion import excel_sheet_names, prepare_preview, read_csv, read_excel, read_pasted_text
 from src.results import STATUS_LABELS, csv_download, result_tables
 from src.storage import Store
+from src.summary_ui import show_compact_metrics
 from src.workflow import confirm_codebook, execute_run, generate_codebook
 
 SAMPLE_PATH = Path(__file__).parent / "data" / "samples" / "voc_sample.csv"
@@ -111,58 +112,63 @@ def codebook_screen(store, dataset):
             st.session_state[choice_key] = pending
         selected = st.selectbox("분류 기준표 버전", list(labels), format_func=labels.get, key=choice_key)
         book = store.codebook(selected)
-    context = st.text_area("이번 분류 기준표의 분석 배경 (선택)", value=book["context"] if book else dataset["context"],
-        max_chars=10000, key=f"context_{book['id'] if book else dataset['id']}")
-    if st.button("분류 기준표 초안 만들기", key="generate_codebook", type="primary"):
-        with st.spinner("VOC 표본에서 분류 기준을 만들고 있습니다…"):
-            identifier = with_ai(lambda ai: generate_codebook(store, dataset["id"], ai, context.strip()))
-        st.session_state.confirmed_book = identifier
-        st.rerun()
-    if book is None:
-        return
-    editing = st.session_state.get(f"revise_{book['id']}_draft") if book["status"] == "confirmed" else None
-    st.caption(f"분류 {len(editing['rows']) if editing else len(book['codes'])}개")
-    notice = st.session_state.pop("book_notice", None)
-    if notice:
-        st.success(notice)
-    if context.strip() != book["context"]:
-        st.warning("배경이 변경되었습니다. 새 배경으로 초안을 만들어주세요.")
-    if book["status"] == "draft":
-        st.subheader("초안 편집")
-        with st.expander("편집 방법"):
-            st.markdown("- 수정: 셀 더블클릭 → 입력 → Enter\n- 삭제: 행 왼쪽 체크박스 → 휴지통\n- 추가: ＋ 또는 마지막 빈 행")
-        edited = st.data_editor(code_frame(book["codes"]), num_rows="dynamic", disabled=["id"],
-            column_config={"id": None, **{key: st.column_config.TextColumn(label, required=True)
-                for key, label in CODE_COLUMNS.items() if key != "id"}},
-            hide_index=True, width="stretch", key=f"editor_{selected}")
-        if st.button("분류 기준표 저장", key="confirm_codebook", type="primary", disabled=context.strip() != book["context"]):
-            identifier = confirm_codebook(store, selected, edited.where(pd.notna(edited), None).to_dict("records"))
+    confirmed = book is not None and book["status"] == "confirmed"
+    content = st.container() if confirmed else None
+    generation = st.expander("배경 변경 · 새 초안 만들기") if confirmed else st.container()
+    with generation:
+        context = st.text_area("이번 분류 기준표의 분석 배경 (선택)", value=book["context"] if book else dataset["context"],
+            max_chars=10000, key=f"context_{book['id'] if book else dataset['id']}")
+        if st.button("분류 기준표 초안 만들기", key="generate_codebook", type="secondary" if confirmed else "primary"):
+            with st.spinner("VOC 표본에서 분류 기준을 만들고 있습니다…"):
+                identifier = with_ai(lambda ai: generate_codebook(store, dataset["id"], ai, context.strip()))
             st.session_state.confirmed_book = identifier
             st.rerun()
-    else:
-        editor_container = st.container()
-        prior = [run for run in store.list_runs(dataset["id"]) if run["status"] == "completed"]
-        prior_labels = {run["id"]: f"{datetime.fromisoformat(run['created_at']).astimezone(timezone(timedelta(hours=9))):%Y-%m-%d %H:%M:%S}" for run in prior}
-        prior_labels = unique_analysis_labels(prior_labels)
-        parent_id = None
-        if prior:
-            parent_id = st.selectbox("수정값을 가져올 이전 분석", [*prior_labels, None],
-                format_func=lambda identifier: prior_labels.get(identifier, "가져오지 않음 · 독립된 새 분석"), key=f"parent_{book['id']}")
-        actions = st.container(horizontal=True, wrap=False)
-        with editor_container:
-            show_codebook_changes(store, book, with_ai, save_container=actions)
-        editing = st.session_state.get(f"revise_{book['id']}_draft")
-        unsaved = bool(editing and table_has_changes(book, editing))
-        if unsaved:
-            st.caption("분류 기준표를 먼저 저장해주세요.")
-        if actions.button("분류 결과로 이동", key="start_classification", type="primary", disabled=context.strip() != book["context"] or unsaved):
-            def start(ai):
-                identifier = store.create_run(dataset["id"], selected, ai.model, PROMPT_VERSION, parent_run_id=parent_id)
-                st.session_state.run_id = identifier
-                run_with_progress(store, identifier, ai)
-            with_ai(start)
-            st.session_state.page = "3. 분류 결과"
-            st.rerun()
+    if book is None:
+        return
+    with content if content is not None else st.container():
+        editing = st.session_state.get(f"revise_{book['id']}_draft") if confirmed else None
+        st.caption(f"분류 {len(editing['rows']) if editing else len(book['codes'])}개")
+        notice = st.session_state.pop("book_notice", None)
+        if notice:
+            st.success(notice)
+        if context.strip() != book["context"]:
+            st.warning("배경이 변경되었습니다. 새 배경으로 초안을 만들어주세요.")
+        if book["status"] == "draft":
+            st.subheader("초안 편집")
+            with st.expander("편집 방법"):
+                st.markdown("- 수정: 셀 더블클릭 → 입력 → Enter\n- 삭제: 행 왼쪽 체크박스 → 휴지통\n- 추가: ＋ 또는 마지막 빈 행")
+            edited = st.data_editor(code_frame(book["codes"]), num_rows="dynamic", disabled=["id"],
+                column_config={"id": None, **{key: st.column_config.TextColumn(label, required=True)
+                    for key, label in CODE_COLUMNS.items() if key != "id"}},
+                hide_index=True, width="stretch", key=f"editor_{selected}")
+            if st.button("분류 기준표 저장", key="confirm_codebook", type="primary", disabled=context.strip() != book["context"]):
+                identifier = confirm_codebook(store, selected, edited.where(pd.notna(edited), None).to_dict("records"))
+                st.session_state.confirmed_book = identifier
+                st.rerun()
+        else:
+            editor_container = st.container()
+            prior = [run for run in store.list_runs(dataset["id"]) if run["status"] == "completed"]
+            prior_labels = {run["id"]: f"{datetime.fromisoformat(run['created_at']).astimezone(timezone(timedelta(hours=9))):%Y-%m-%d %H:%M:%S}" for run in prior}
+            prior_labels = unique_analysis_labels(prior_labels)
+            parent_id = None
+            if prior:
+                parent_id = st.selectbox("수정값을 가져올 이전 분석", [*prior_labels, None],
+                    format_func=lambda identifier: prior_labels.get(identifier, "가져오지 않음 · 독립된 새 분석"), key=f"parent_{book['id']}")
+            actions = st.container(horizontal=True, wrap=False)
+            with editor_container:
+                show_codebook_changes(store, book, with_ai, save_container=actions)
+            editing = st.session_state.get(f"revise_{book['id']}_draft")
+            unsaved = bool(editing and table_has_changes(book, editing))
+            if unsaved:
+                st.caption("분류 기준표를 먼저 저장해주세요.")
+            if actions.button("분류 결과로 이동", key="start_classification", type="primary", disabled=context.strip() != book["context"] or unsaved):
+                def start(ai):
+                    identifier = store.create_run(dataset["id"], selected, ai.model, PROMPT_VERSION, parent_run_id=parent_id)
+                    st.session_state.run_id = identifier
+                    run_with_progress(store, identifier, ai)
+                with_ai(start)
+                st.session_state.page = "3. 분류 결과"
+                st.rerun()
 
 
 def run_with_progress(store, identifier, ai):
@@ -201,11 +207,13 @@ def results_screen(store, dataset):
                 run_with_progress(store, selected, ai)
             with_ai(resume, run["model"])
             st.rerun()
-    a, b, c, d = st.columns(4)
-    a.metric("원본 응답", f"{len(originals)}건")
-    b.metric("의견 있는 응답", f"{originals['응답 상태'].isin(['의견 있음', '맞는 코드 없음·검토 필요']).sum()}건")
-    c.metric("없음·무응답·모름", f"{originals['응답 상태'].eq('없음·무응답·모름').sum()}건")
-    d.metric("실패·미처리·검토", f"{(~originals['응답 상태'].isin(['의견 있음', '없음·무응답·모름'])).sum()}건")
+    pending_count = (~originals['응답 상태'].isin(['의견 있음', '없음·무응답·모름'])).sum()
+    show_compact_metrics([
+        ("원본 응답", f"{len(originals)}건", None),
+        ("의견 있는 응답", f"{originals['응답 상태'].isin(['의견 있음', '맞는 코드 없음·검토 필요']).sum()}건", None),
+        ("없음·무응답·모름", f"{originals['응답 상태'].eq('없음·무응답·모름').sum()}건", None),
+        ("실패·미처리·검토", f"{pending_count}건", None),
+    ], key=f"result_summary_{selected}", muted_labels=("실패·미처리·검토",) if pending_count == 0 else ())
     with st.expander("분석 정보"):
         st.caption(f"모델 {run['model']} · 자동 보완 {run['round']}회 · 결과 개정 {run['result_revision']}")
         if run["parent_run_id"]:

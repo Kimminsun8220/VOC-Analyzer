@@ -19,7 +19,7 @@ def show_codebook_changes(store, book, with_ai, save_container=None):
             new_id = None
             draft, save_requested = interactive_table(book)
             save_target = save_container if save_container is not None else st
-            save_clicked = save_target.button("분류 기준표 저장", key=prefix + "_save", type="primary")
+            save_clicked = save_target.button("분류 기준표 저장", key=prefix + "_save", type="secondary")
             if save_requested or save_clicked:
                 new_id = save_table_draft(store, book, draft, generate_definitions=generate_definitions)
             if new_id:

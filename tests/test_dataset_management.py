@@ -123,14 +123,52 @@ def no_ai(monkeypatch):
     monkeypatch.setattr(ai_module, "GeminiAI", lambda *args: pytest.fail("자료 관리에서 AI 호출 금지"))
 
 
+def open_management(page="2. 분류 기준표"):
+    app = AppTest.from_file(APP_PATH).run()
+    app.radio(key="nav").set_value(page).run()
+    return app
+
+
+@pytest.mark.parametrize("page, title, choice_prefix", [
+    ("2. 분류 기준표", "분류 기준표", "book_choice_"),
+    ("3. 분류 결과", "분류 결과", "result_choice_"),
+])
+def test_ui_picker_is_hidden_on_input_and_selects_analysis_from_page_top(monkeypatch, page, title, choice_prefix):
+    no_ai(monkeypatch)
+    store = Store()
+    target, books, runs = saved_bundle(store)
+    saved_bundle(store, "다른 자료")
+    app = AppTest.from_file(APP_PATH).run()
+    assert not any((button.key or "").startswith("dataset_") for button in app.button)
+    assert "저장된 입력 자료" not in [item.value for item in app.markdown]
+    app.radio(key="nav").set_value(page).run()
+    assert app.main.header[0].value == title
+    assert not app.sidebar.button
+    assert any((button.key or "").startswith("dataset_select_") for button in app.main.button)
+    nodes = list(app.main)
+    picker_position = next(i for i, node in enumerate(nodes) if getattr(node, "key", None) == f"dataset_select_{target}")
+    analysis_position = next(i for i, node in enumerate(nodes)
+                             if (getattr(node, "key", None) or "").startswith(choice_prefix))
+    assert picker_position < analysis_position
+    app.button(key=f"dataset_select_{target}").click().run()
+    assert app.session_state.dataset_id == target
+    expected = books if page == "2. 분류 기준표" else runs
+    assert app.selectbox(key=f"{choice_prefix}{target}").value in expected
+    app.radio(key="nav").set_value("1. 입력").run()
+    assert not any((button.key or "").startswith("dataset_") for button in app.button)
+    app.radio(key="nav").set_value(page).run()
+    assert app.session_state.dataset_id == target
+    assert app.selectbox(key=f"{choice_prefix}{target}").value in expected
+    assert not app.exception and not app.error
+
+
 def test_ui_inline_rename_and_immediate_delete_switch_to_remaining_dataset(monkeypatch):
     no_ai(monkeypatch)
     store = Store()
     target, books, runs = saved_bundle(store)
     other, _, _ = saved_bundle(store, "남겨둘 자료")
-    app = AppTest.from_file(APP_PATH).run()
+    app = open_management("3. 분류 결과")
     app.button(key=f"dataset_select_{target}").click().run()
-    app.radio(key="nav").set_value("3. 분류 결과").run()
     assert "입력 자료 관리" not in [expander.label for expander in app.expander]
     app.button(key=f"dataset_icon_edit_{target}").click().run()
     app.text_input(key=f"dataset_name_{target}").set_value("변경한 자료 이름")
@@ -145,7 +183,7 @@ def test_ui_inline_rename_and_immediate_delete_switch_to_remaining_dataset(monke
     assert app.radio(key="nav").value == "3. 분류 결과"
     assert all(not any(identifier in key for identifier in (target, *books, *runs)) for key in app.session_state.keys())
     assert not any("삭제 확인" in button.label for button in app.button)
-    fresh = AppTest.from_file(APP_PATH).run()
+    fresh = open_management("3. 분류 결과")
     assert fresh.session_state.dataset_id == other and not fresh.exception
 
 
@@ -158,7 +196,7 @@ def test_ui_delete_last_dataset_returns_to_input_and_can_save_again(monkeypatch)
     app.button(key=f"dataset_icon_delete_{target}").click().run()
     assert not store.list_datasets() and not app.exception and not app.error
     assert app.radio(key="nav").value == "1. 입력"
-    assert any("저장된 입력 자료가 없습니다" in caption.value for caption in app.caption)
+    assert not any((button.key or "").startswith("dataset_") for button in app.button)
     app.button(key="preview_button").click().run()
     app.button(key="save_input").click().run()
     assert app.radio(key="nav").value == "2. 분류 기준표"
@@ -170,11 +208,10 @@ def test_ui_manages_unselected_row_without_changing_current_analysis(monkeypatch
     store = Store()
     target, _, _ = saved_bundle(store)
     other, _, _ = saved_bundle(store)  # Identical names must still act on the right ID.
-    app = AppTest.from_file(APP_PATH).run()
+    app = open_management("3. 분류 결과")
     assert app.button(key=f"dataset_select_{other}").label == "관리할 자료 1"
     assert app.button(key=f"dataset_select_{target}").label == "관리할 자료 2"
     app.button(key=f"dataset_select_{other}").click().run()
-    app.radio(key="nav").set_value("3. 분류 결과").run()
     selected_run = app.selectbox(key=f"result_choice_{other}").value
     metrics = [metric.value for metric in app.metric]
     app.button(key=f"dataset_icon_edit_{target}").click().run()
@@ -195,7 +232,7 @@ def test_ui_bad_name_keeps_inline_editor_and_original_name(monkeypatch, name):
     no_ai(monkeypatch)
     store = Store()
     target, _, _ = saved_bundle(store)
-    app = AppTest.from_file(APP_PATH).run()
+    app = open_management()
     app.button(key=f"dataset_icon_edit_{target}").click().run()
     app.text_input(key=f"dataset_name_{target}").set_value(name)
     app.button(key=f"dataset_icon_save_{target}").click().run()
@@ -210,7 +247,7 @@ def test_ui_selection_leaves_unsaved_edit_and_running_disables_delete(monkeypatc
     store = Store()
     target, _, runs = saved_bundle(store)
     other, _, _ = saved_bundle(store, "다른 자료")
-    app = AppTest.from_file(APP_PATH).run()
+    app = open_management()
     app.button(key=f"dataset_icon_edit_{target}").click().run()
     app.text_input(key=f"dataset_name_{target}").set_value("아직 저장하지 않음")
     app.button(key=f"dataset_select_{other}").click().run()
@@ -226,7 +263,7 @@ def test_ui_delete_race_preserves_data_and_reports_running_analysis(monkeypatch)
     no_ai(monkeypatch)
     store = Store()
     target, _, runs = saved_bundle(store)
-    app = AppTest.from_file(APP_PATH).run()
+    app = open_management()
     assert not app.button(key=f"dataset_icon_delete_{target}").disabled
     store.claim(runs[1])
     app.button(key=f"dataset_icon_delete_{target}").click().run()

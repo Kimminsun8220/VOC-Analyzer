@@ -12,6 +12,7 @@ from src.models import Code, CodebookDraft, CodingBatch, CodingResult, Issue, ma
 from src.results import csv_download, result_tables
 from src.storage import Store
 from src.workflow import confirm_codebook, execute_run, generate_codebook, sample_records
+from src.codebook_table import table_action, visible_rows
 
 
 def code(identifier="C1", name="배송 속도", definition="배송의 빠르기와 약속일 준수에 관한 의견"):
@@ -289,10 +290,17 @@ def test_app_input_to_codebook_to_results_and_reload(monkeypatch):
     app.button(key="save_input").click().run()
     assert not app.exception
     assert app.radio(key="nav").value == "2. 분류 기준표"
+    assert app.text_area[0].label == "자료 설명과 분류 요청 (선택)"
+    assert app.button(key="generate_codebook").label == "AI로 분류 기준표 만들기"
     app.button(key="generate_codebook").click().run()
     assert not app.exception and not app.error
     app.button(key="confirm_codebook").click().run()
     assert not app.exception and not app.error
+    assert not app.checkbox
+    assert not any(item.label == "수정값을 가져올 이전 분석" for item in app.selectbox)
+    assert any(item.label == "분류 기준표 새로 만들기" for item in app.expander)
+    assert app.button(key="generate_codebook").label == "AI로 새 분류 기준표 만들기"
+    assert app.button(key="start_classification").label == "이 기준표로 VOC 분류하기"
     app.button(key="start_classification").click().run(timeout=10)
     assert not app.exception and not app.error
     assert app.radio(key="nav").value == "3. 분류 결과"
@@ -301,6 +309,14 @@ def test_app_input_to_codebook_to_results_and_reload(monkeypatch):
     fresh = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     fresh.radio(key="nav").set_value("3. 분류 결과").run()
     assert fresh.metric[0].value == "20건" and not fresh.exception
+    fresh.radio(key="nav").set_value("2. 분류 기준표").run()
+    assert not fresh.checkbox
+    context_input = fresh.text_area[0]
+    context_input.set_value("구매 과정의 만족도 조사").run()
+    assert fresh.button(key="start_classification").disabled
+    assert any("새 분류 기준표를 만들어주세요" in item.value for item in fresh.warning)
+    context_input.set_value("").run()
+    assert not fresh.button(key="start_classification").disabled
     # 저장된 자료가 있는 상태에서 새 입력을 저장해도 위젯 상태 변경 오류가 없어야 한다.
     fresh.radio(key="nav").set_value("1. 입력").run()
     fresh.button(key="preview_button").click().run()
@@ -346,11 +362,12 @@ def test_draft_editor_applies_cell_edits_deletion_and_addition_on_confirmation()
     draft_id = store.save_codebook(dataset_id, [code(), code("C2", "포장", "포장 상태 의견")], "", "test-model", [])
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     app.radio(key="nav").set_value("2. 분류 기준표").run()
-    app.session_state[f"editor_{draft_id}"] = {
-        "edited_rows": {0: {"category": "물류", "name": "도착 속도", "definition": "약속한 날짜의 도착 여부"}},
-        "deleted_rows": [1],
-        "added_rows": [{"category": "제품", "name": "구성품", "definition": "구성품 제공 여부"}],
-    }
+    draft = app.session_state[f"revise_{draft_id}_draft"]
+    draft["rows"][0].update(category="물류", name="도착 속도", definition="약속한 날짜의 도착 여부")
+    draft = table_action(draft, {"kind": "delete", "source_id": "C2", "rows": visible_rows(draft)})
+    draft = table_action(draft, {"kind": "add", "rows": visible_rows(draft)})
+    draft["rows"][-1].update(category="제품", name="구성품", definition="구성품 제공 여부")
+    app.session_state[f"revise_{draft_id}_draft"] = draft
     app.button(key="confirm_codebook").click().run()
     assert not app.exception and not app.error
     confirmed = store.codebook(store.list_codebooks(dataset_id)[0]["id"])

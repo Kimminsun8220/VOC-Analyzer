@@ -1,13 +1,15 @@
 """새 버전의 편집·통합·분리 조작과 결과 적용에 필요한 안내를 제공한다."""
 
+from copy import deepcopy
+
 from pydantic import ValidationError
 import streamlit as st
 
-from src.codebook_table import save_table_draft
+from src.codebook_table import save_table_draft, table_draft
 from src.codebook_table_ui import interactive_table
 
 
-def show_codebook_changes(store, book, with_ai, save_container=None):
+def show_codebook_changes(store, book, with_ai, save_container=None, save_disabled=False):
     prefix = f"revise_{book['id']}"
 
     def generate_definitions(*args):
@@ -19,10 +21,16 @@ def show_codebook_changes(store, book, with_ai, save_container=None):
             new_id = None
             draft, save_requested = interactive_table(book)
             save_target = save_container if save_container is not None else st
-            save_clicked = save_target.button("분류 기준표 저장", key=prefix + "_save", type="secondary")
-            if save_requested or save_clicked:
+            is_draft = book["status"] == "draft"
+            save_clicked = save_target.button("분류 기준표 저장", key="confirm_codebook" if is_draft else prefix + "_save",
+                type="primary" if is_draft else "secondary", disabled=save_disabled)
+            if (save_requested or save_clicked) and not save_disabled:
                 new_id = save_table_draft(store, book, draft, generate_definitions=generate_definitions)
             if new_id:
+                following = table_draft(store.codebook(new_id))
+                following["filters"] = deepcopy(draft["filters"])
+                following["kept_rows"] = list(draft["kept_rows"])
+                st.session_state[f"revise_{new_id}_draft"] = following
                 st.session_state.confirmed_book = new_id
                 st.session_state["book_notice"] = "분류 기준표 저장 완료"
                 st.rerun()

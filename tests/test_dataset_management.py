@@ -129,11 +129,11 @@ def open_management(page="2. 분류 기준표"):
     return app
 
 
-@pytest.mark.parametrize("page, title, choice_prefix", [
-    ("2. 분류 기준표", "분류 기준표", "book_choice_"),
-    ("3. 분류 결과", "분류 결과", "result_choice_"),
+@pytest.mark.parametrize("page, title, choice_prefix, control_prefix", [
+    ("2. 분류 기준표", "분류 기준표", "book_choice_", "codebook_select_"),
+    ("3. 분류 결과", "분류 결과", "result_choice_", "result_choice_"),
 ])
-def test_ui_picker_is_hidden_on_input_and_selects_analysis_from_page_top(monkeypatch, page, title, choice_prefix):
+def test_ui_picker_is_hidden_on_input_and_selects_analysis_from_page_top(monkeypatch, page, title, choice_prefix, control_prefix):
     no_ai(monkeypatch)
     store = Store()
     target, books, runs = saved_bundle(store)
@@ -148,17 +148,17 @@ def test_ui_picker_is_hidden_on_input_and_selects_analysis_from_page_top(monkeyp
     nodes = list(app.main)
     picker_position = next(i for i, node in enumerate(nodes) if getattr(node, "key", None) == f"dataset_select_{target}")
     analysis_position = next(i for i, node in enumerate(nodes)
-                             if (getattr(node, "key", None) or "").startswith(choice_prefix))
+                             if (getattr(node, "key", None) or "").startswith(control_prefix))
     assert picker_position < analysis_position
     app.button(key=f"dataset_select_{target}").click().run()
     assert app.session_state.dataset_id == target
     expected = books if page == "2. 분류 기준표" else runs
-    assert app.selectbox(key=f"{choice_prefix}{target}").value in expected
+    assert app.session_state[f"{choice_prefix}{target}"] in expected
     app.radio(key="nav").set_value("1. 입력").run()
     assert not any((button.key or "").startswith("dataset_") for button in app.button)
     app.radio(key="nav").set_value(page).run()
     assert app.session_state.dataset_id == target
-    assert app.selectbox(key=f"{choice_prefix}{target}").value in expected
+    assert app.session_state[f"{choice_prefix}{target}"] in expected
     assert not app.exception and not app.error
 
 

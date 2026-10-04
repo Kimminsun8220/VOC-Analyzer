@@ -67,6 +67,12 @@ class Store:
                 );
             """)
             db.execute("BEGIN IMMEDIATE")
+            book_columns = {row[1] for row in db.execute("PRAGMA table_info(codebooks)")}
+            for name, definition in {
+                "name": "TEXT NOT NULL DEFAULT ''", "deleted_at": "TEXT NOT NULL DEFAULT ''",
+            }.items():
+                if name not in book_columns:
+                    db.execute(f"ALTER TABLE codebooks ADD COLUMN {name} {definition}")
             columns = {row[1] for row in db.execute("PRAGMA table_info(runs)")}
             for name, definition in {
                 "parent_run_id": "TEXT REFERENCES runs(id)", "parent_result_revision": "INTEGER",
@@ -162,9 +168,14 @@ class Store:
 
     def _save_codebook(self, db, dataset_id, codes, context, model, sample_ids, status, parent_id, changes, constraints):
         validate_codes(codes)
+        if parent_id:
+            parent = db.execute("SELECT dataset_id,deleted_at FROM codebooks WHERE id=?", (parent_id,)).fetchone()
+            if parent is None or parent["dataset_id"] != dataset_id or parent["deleted_at"]:
+                raise ValueError("분류 기준표를 찾을 수 없습니다. 목록에서 다시 선택해주세요.")
         identifier = uuid4().hex
         version = db.execute("SELECT COALESCE(MAX(version),0)+1 FROM codebooks WHERE dataset_id=?", (dataset_id,)).fetchone()[0]
-        db.execute("INSERT INTO codebooks VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (
+        db.execute("INSERT INTO codebooks(id,dataset_id,version,status,codes_json,context,model,sample_ids_json,"
+                   "parent_id,changes_json,constraints_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (
             identifier, dataset_id, version, status, dump([c.model_dump() for c in codes]), context, model,
             dump(sample_ids), parent_id, dump(changes), dump(constraints), datetime.now(timezone.utc).isoformat(),
         ))
@@ -177,23 +188,51 @@ class Store:
 
     def codebook(self, identifier):
         with self.connect() as db:
-            row = dict(db.execute("SELECT * FROM codebooks WHERE id=?", (identifier,)).fetchone())
+            saved = db.execute("SELECT * FROM codebooks WHERE id=?", (identifier,)).fetchone()
+            if saved is None:
+                raise ValueError("분류 기준표를 찾을 수 없습니다. 목록에서 다시 선택해주세요.")
+            row = dict(saved)
         row["codes"] = [Code.model_validate(code) for code in json.loads(row.pop("codes_json"))]
         for key in ("sample_ids", "changes", "constraints"):
             row[key] = json.loads(row.pop(key + "_json"))
         return row
 
-    def list_codebooks(self, dataset_id):
+    def list_codebooks(self, dataset_id, *, include_deleted=False):
         with self.connect() as db:
-            return [dict(row) for row in db.execute("SELECT id,version,status FROM codebooks WHERE dataset_id=? ORDER BY version DESC", (dataset_id,))]
+            return [dict(row) for row in db.execute("""
+                SELECT id,version,status,name,deleted_at,
+                    EXISTS(SELECT 1 FROM runs WHERE codebook_id=b.id AND lease_until>?) AS analysis_running
+                FROM codebooks b WHERE dataset_id=? AND (? OR deleted_at='') ORDER BY version DESC
+            """, (time.time(), dataset_id, include_deleted))]
+
+    def rename_codebook(self, identifier, name):
+        name = name.strip()
+        if not name or len(name) > 100:
+            raise ValueError("기준표 이름을 1~100자로 입력해주세요.")
+        with self.connect() as db:
+            if not db.execute("UPDATE codebooks SET name=? WHERE id=? AND deleted_at=''", (name, identifier)).rowcount:
+                raise ValueError("분류 기준표를 찾을 수 없습니다. 목록에서 다시 선택해주세요.")
+
+    def delete_codebook(self, identifier):
+        """목록에서 삭제하되 결과 스냅샷과 버전 간 수정 승계 경로는 보존한다."""
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if not db.execute("SELECT 1 FROM codebooks WHERE id=? AND deleted_at=''", (identifier,)).fetchone():
+                raise ValueError("분류 기준표를 찾을 수 없습니다. 목록에서 다시 선택해주세요.")
+            if db.execute("SELECT 1 FROM runs WHERE codebook_id=? AND lease_until>?", (identifier, time.time())).fetchone():
+                raise ValueError("분류가 진행 중인 기준표는 삭제할 수 없습니다. 완료 후 다시 시도해주세요.")
+            db.execute("UPDATE codebooks SET deleted_at=? WHERE id=?", (datetime.now(timezone.utc).isoformat(), identifier))
 
     def create_run(self, dataset_id, codebook_id, model, prompt_version, parent_run_id=None):
         book = self.codebook(codebook_id)
-        if book["dataset_id"] != dataset_id or book["status"] != "confirmed":
+        if book["dataset_id"] != dataset_id or book["status"] != "confirmed" or book["deleted_at"]:
             raise ValueError("이 자료의 확정된 분류 기준표를 선택해주세요.")
         identifier = uuid4().hex
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            current_book = db.execute("SELECT deleted_at FROM codebooks WHERE id=?", (codebook_id,)).fetchone()
+            if current_book is None or current_book["deleted_at"]:
+                raise ValueError("삭제된 기준표입니다. 목록에서 다른 기준표를 선택해주세요.")
             inheritance, parent_revision = [], None
             if parent_run_id:
                 parent = self.run(parent_run_id)

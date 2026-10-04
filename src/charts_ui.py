@@ -48,7 +48,6 @@ def bar_figure(frame, label_column, id_column, measure=COUNT, sentiment_colors=F
 
 
 def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
-    st.subheader("현재 범위 시각화", help="막대를 누르면 해당 범위의 원문을 조회합니다.")
     if run["status"] != "completed":
         st.info("차트는 분류와 승계 검토를 마친 실행에서 제공합니다. 현재 저장된 의견은 아래 표에서 확인하세요.")
         return
@@ -59,11 +58,24 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
     data = build_dashboard(grouped, filtered)
     denominator_label = "현재 선택 범위의 고유 VOC" if filtered else "전체 원본 응답(무응답 포함)"
     st.caption(f"비율 기준: {denominator_label} {data.denominator}건 · 복수 분류·감성으로 합계 100% 초과 가능")
-    count_column, top_column = st.columns([1, 3])
-    count_column.metric("현재 범위의 대분류", f"{len(data.categories)}개")
     top = data.codes.iloc[0]
-    top_column.metric("가장 많은 세부분류", top["세부분류"])
-    top_column.caption(f"{int(top[COUNT])}건 · {top['대분류']}")
+    with st.container(key=prefix + "_dashboard_summary"):
+        st.html(f"""<style>
+            .st-key-{prefix}_dashboard_summary [data-testid="stMetricValue"] {{
+                font-size: 18px; font-weight: 600; line-height: 1.4;
+            }}
+            .st-key-{prefix}_dashboard_summary .leading-code-label {{
+                font-size: 14px; line-height: 24px; margin: 0;
+            }}
+            .st-key-{prefix}_dashboard_summary .leading-code-value {{
+                font-size: 20px; font-weight: 600; line-height: 1.5;
+                margin: 0; overflow-wrap: anywhere;
+            }}
+        </style>""")
+        top_column, count_column = st.columns([3, 1], vertical_alignment="center")
+        top_column.html(f"""<p class="leading-code-label">가장 많은 세부분류</p>
+            <p class="leading-code-value">[{escape(str(top['대분류']))}] {escape(str(top['세부분류']))} · {int(top[COUNT])}건</p>""")
+        count_column.metric("현재 범위의 대분류", f"{len(data.categories)}개")
     display = st.radio("차트 표시", ["VOC 건수", "범위 내 비율"], key=prefix + "_measure", horizontal=True)
     measure = COUNT if display == "VOC 건수" else PERCENT
     selected_codes = book["codes"]
@@ -72,7 +84,7 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
         run["result_revision"], st.session_state.get(prefix + "_chart_epoch", 0)], ensure_ascii=False).encode()).hexdigest()[:16]
 
     def show_selectable(frame, kind, label, identifier, title, notice=None):
-        st.markdown(f"**{title}**")
+        st.markdown(f"**{title}**", help="막대를 누르면 해당 범위의 원문을 조회합니다." if kind == "category" else None)
         if notice:
             with st.container(key=prefix + "_tie_notice"):
                 st.html(f"""<style>

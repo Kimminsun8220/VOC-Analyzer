@@ -5,6 +5,7 @@ import streamlit as st
 from src.charts_ui import show_dashboard
 from src.grouping import SENTIMENTS, group_results
 from src.results import csv_download
+from src.summary_ui import show_compact_metrics
 
 MODES = ["전체 보기", "대분류로 묶기", "세부분류 직접 선택"]
 
@@ -36,7 +37,7 @@ def show_grouped_results(store, run, book, originals, issues):
         clear_chart_history()
 
     with st.container(border=True):
-        st.subheader("분류 묶어보기")
+        st.markdown("**분류 묶어보기**")
         saved = store.list_groups(run["id"])
         if saved:
             with st.expander(f"저장한 묶음 불러오기 · {len(saved)}개"):
@@ -54,7 +55,10 @@ def show_grouped_results(store, run, book, originals, issues):
                         clear_chart_history()
                         st.success(f"‘{group['name']}’ 묶음을 불러왔습니다.")
 
-        mode = st.radio("묶어보기 방식", MODES, horizontal=True, key=mode_key, on_change=clear_chart_history)
+        mode_column, filter_column, reset_column = st.columns([4, 2, 2], vertical_alignment="bottom")
+        mode = mode_column.radio("묶어보기 방식", MODES, horizontal=True, key=mode_key, on_change=clear_chart_history)
+        sentiment = filter_column.selectbox("선택 범위의 감성", SENTIMENTS, key=sentiment_key, on_change=clear_chart_history)
+        reset_column.button("선택 초기화 · 전체 보기", on_click=reset, key=f"{prefix}_reset", width="stretch")
         selected_ids = None
         if mode == MODES[1]:
             categories = st.multiselect("함께 볼 대분류", sorted({code.category for code in codes}),
@@ -63,9 +67,6 @@ def show_grouped_results(store, run, book, originals, issues):
         elif mode == MODES[2]:
             selected_ids = st.multiselect("함께 볼 세부분류", list(labels), format_func=labels.get,
                 key=codes_key, placeholder="예: 오배송과 배송 속도를 함께 선택하세요", wrap=True, on_change=clear_chart_history)
-        filter_column, reset_column = st.columns([3, 1], vertical_alignment="bottom")
-        sentiment = filter_column.selectbox("선택 범위의 감성", SENTIMENTS, key=sentiment_key, on_change=clear_chart_history)
-        reset_column.button("선택 초기화 · 전체 보기", on_click=reset, key=f"{prefix}_reset", width="stretch")
         if st.session_state.get(prefix + "_chart_history"):
             st.button("← 차트 선택 이전으로", on_click=go_back, key=prefix + "_back")
         chart_notice = st.session_state.pop(prefix + "_chart_notice", None)
@@ -80,10 +81,11 @@ def show_grouped_results(store, run, book, originals, issues):
         st.warning("진행 중이거나 검토가 남은 분석입니다. 아래 수치는 현재 저장된 의견만으로 계산한 잠정 결과입니다.")
     if selected_ids == []:
         return
-    a, b, c = st.columns(3)
-    a.metric("묶음의 고유 VOC", f"{grouped.voc_count}건", help="여러 분류에 겹쳐도 같은 응답은 1건으로 셉니다.")
-    b.metric("전체 응답 대비", f"{grouped.percent:.1f}%", help=f"무응답 포함 전체 응답 {grouped.total_count}건 기준입니다.")
-    c.metric("선택 범위의 의견", f"{len(grouped.issues)}개", help="한 응답에 여러 의견이 있을 수 있습니다.")
+    show_compact_metrics([
+        ("묶음의 고유 VOC", f"{grouped.voc_count}건", "여러 분류에 겹쳐도 같은 응답은 1건으로 셉니다."),
+        ("전체 응답 대비", f"{grouped.percent:.1f}%", f"무응답 포함 전체 응답 {grouped.total_count}건 기준입니다."),
+        ("선택 범위의 의견", f"{len(grouped.issues)}개", "한 응답에 여러 의견이 있을 수 있습니다."),
+    ], key=prefix + "_summary")
 
     if selected_ids is not None:
         with st.expander("선택 분류별 건수 확인"):

@@ -135,7 +135,7 @@ def rename_dataset(store, identifier):
 
 def delete_dataset(store, identifier):
     try:
-        identifiers = [identifier, *[book["id"] for book in store.list_codebooks(identifier)],
+        identifiers = [identifier, *[book["id"] for book in store.list_codebooks(identifier, include_deleted=True)],
                        *[run["id"] for run in store.list_runs(identifier)]]
         store.delete_dataset(identifier)
     except (ValueError, sqlite3.Error, OSError) as error:

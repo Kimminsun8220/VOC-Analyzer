@@ -88,7 +88,7 @@ def test_split_retry_saves_inherited_category_and_preserves_original(split_scree
         ("종합 평가", "방문 경험", "방문 절차에 관한 의견"),
     ]
     assert store.codebook(book) == before
-    assert app.selectbox(key=f"book_choice_{dataset}").value == revised["id"]
+    assert app.session_state[f"book_choice_{dataset}"] == revised["id"]
 
 
 class DefinitionAI:
@@ -144,7 +144,7 @@ def test_split_names_only_generates_definitions_and_preserves_source(split_scree
     assert payload["context"] == before["context"]
     assert payload["codes"] == before["codes"]
     assert all(set(row) == {"id", "text"} for row in payload["records"])
-    assert app.selectbox(key=f"book_choice_{dataset}").value == revised["id"]
+    assert app.session_state[f"book_choice_{dataset}"] == revised["id"]
 
 
 def test_split_fills_only_missing_definition(split_screen, definition_ai):

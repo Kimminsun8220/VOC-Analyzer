@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from src.codebook_changes import code_mapping
-from src.codebook_table import save_table_draft, table_action, table_draft, visible_rows
+from src.codebook_table import save_table_draft, table_action, table_draft, table_has_changes, update_fields, update_view, visible_rows
 from src.ingestion import prepare_preview
 from src.models import Code, CodeDefinition, CodeDefinitions
 from src.storage import Store
@@ -111,3 +111,57 @@ def test_delete_all_rows_cannot_save_and_undo_recovers(book):
         save_table_draft(store, source, draft)
     assert len(operate(draft, "undo")["rows"]) == 1
     assert len(store.list_codebooks(source["dataset_id"])) == 1
+
+
+def test_filtered_edit_saves_hidden_codes_and_does_not_store_view_as_code_changes(book):
+    store, source = book
+    draft = table_draft(source)
+    update_view(draft, {"filters": {"category": ["배송"], "name": None}, "kept_rows": []})
+    assert not table_has_changes(source, draft)
+    rows = visible_rows(draft)
+    rows[0]["name"] = "도착 속도"
+    update_fields(draft, rows)
+    saved = store.codebook(save_table_draft(store, source, draft))
+    assert saved["codes"][0].name == "도착 속도"
+    assert saved["codes"][1:] == source["codes"][1:]
+    assert all("filters" not in change for change in saved["changes"])
+    with pytest.raises(ValueError, match="표가 변경"):
+        update_fields(draft, rows[:1])  # 표시한 행만 보내 저장하는 오류를 차단한다.
+
+
+def test_structural_edits_preserve_filter_and_undo_keeps_hidden_rows(book):
+    _, source = book
+    draft = table_draft(source)
+    update_view(draft, {"filters": {"category": ["배송"], "name": ["배송 속도"]}, "kept_rows": ["C1"]})
+    split = operate(draft, "split", source_id="C1")
+    assert split["filters"] == draft["filters"]
+    assert len(split["rows"]) == 4
+    assert set(split["kept_rows"]) == {row["id"] for row in split["rows"][:2]}
+    restored = operate(split, "undo")
+    assert visible_rows(restored) == visible_rows(draft)
+    assert restored["filters"] == draft["filters"]
+    assert restored["kept_rows"] == ["C1"]
+    added = operate(draft, "add")
+    assert added["rows"][-1]["id"] in added["kept_rows"]
+    merged = operate(draft, "merge", source_id="C1", target_id="C2")
+    assert merged["rows"][0]["id"] in merged["kept_rows"]
+
+
+def test_unedited_draft_can_be_confirmed_with_all_codes(book):
+    store, source = book
+    identifier = store.save_codebook(source["dataset_id"], source["codes"], "", "test-model", [], "draft")
+    original = store.codebook(identifier)
+    confirmed = store.codebook(save_table_draft(store, original, table_draft(original)))
+    assert confirmed["status"] == "confirmed" and confirmed["codes"] == original["codes"]
+    assert confirmed["parent_id"] == identifier
+
+
+def test_draft_confirmation_preserves_category_only_edit_constraint(book):
+    store, source = book
+    identifier = store.save_codebook(source["dataset_id"], source["codes"], "", "test-model", [], "draft")
+    original = store.codebook(identifier)
+    edited = table_draft(original)
+    edited["rows"][0]["category"] = "물류"
+    confirmed = store.codebook(save_table_draft(store, original, edited))
+    assert confirmed["codes"][0].category == "물류"
+    assert confirmed["constraints"] == [original["codes"][0].model_dump()]

@@ -10,7 +10,9 @@ def save_revision(store, book, codes, changes):
     validate_codes(codes)
     current = {code.id: code for code in codes}
     protected = [code.model_dump() for code in book["codes"] if code.id not in current
-                 or normalized(code.definition) != normalized(current[code.id].definition)]
+                 or normalized(code.definition) != normalized(current[code.id].definition)
+                 or (book["status"] == "draft" and (code.category, code.definition) !=
+                     (current[code.id].category, current[code.id].definition))]
     return store.save_codebook(book["dataset_id"], codes, book["context"], book["model"],
         book["sample_ids"], "confirmed", book["id"], changes, book["constraints"] + protected)
 

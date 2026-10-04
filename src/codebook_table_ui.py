@@ -4,7 +4,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from src.codebook_table import table_action, table_draft, update_fields, visible_rows
+from src.codebook_table import table_action, table_draft, update_fields, update_view, visible_rows
 
 ASSETS = Path(__file__).parent / "components"
 
@@ -16,6 +16,8 @@ def interactive_table(book):
     if state_key not in st.session_state:
         st.session_state[state_key] = table_draft(book)
     draft = st.session_state[state_key]
+    draft.setdefault("filters", {"category": None, "name": None})
+    draft.setdefault("kept_rows", [])
     notice = st.session_state.pop(prefix + "_table_error", None)
     if notice:
         st.error(notice)
@@ -23,14 +25,17 @@ def interactive_table(book):
     edits = getattr(prior, "edits", None)
     if edits and edits.get("revision") == draft["revision"]:
         update_fields(draft, edits["rows"])
+        update_view(draft, edits)
     renderer = st.components.v2.component("criteria_table", html='<div class="criteria-table"></div>',
         css=(ASSETS / "criteria_table.css").read_text(encoding="utf-8"),
         js=(ASSETS / "criteria_table.js").read_text(encoding="utf-8"), isolate_styles=False)
     result = renderer(key=component_key,
-        data={"rows": visible_rows(draft), "revision": draft["revision"], "can_undo": bool(draft["history"]), "focus": draft["focus"]},
+        data={"book_id": book["id"], "rows": visible_rows(draft), "revision": draft["revision"], "can_undo": bool(draft["history"]), "focus": draft["focus"],
+              "filters": draft["filters"], "kept_rows": draft["kept_rows"]},
         default={"edits": None}, on_action_change=lambda: None, on_edits_change=lambda: None)
     if result.edits and result.edits.get("revision") == draft["revision"]:
         update_fields(draft, result.edits["rows"])
+        update_view(draft, result.edits)
     action = result.action
     save_requested = False
     if action and action.get("nonce") != st.session_state.get(prefix + "_last_action"):
@@ -39,6 +44,7 @@ def interactive_table(book):
             try:
                 if action.get("kind") == "save":
                     update_fields(draft, action["rows"])
+                    update_view(draft, action)
                     save_requested = True
                 else:
                     st.session_state[state_key] = table_action(draft, action)

@@ -1,6 +1,8 @@
 """분류 상세의 두 비율 비교와 중복 없는 VOC 감성 구성."""
 
 from html import escape
+from hashlib import sha256
+import json
 import textwrap
 
 import pandas as pd
@@ -8,7 +10,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.chart_data import COUNT, PERCENT
-from src.charts_ui import PRIMARY_FONT, SECONDARY_FONT
+from src.charts_ui import PRIMARY_FONT, SECONDARY_FONT, result_bars_renderer
 
 OTHER_SENTIMENT = "무응답/중립/미검토"
 SENTIMENT_COLORS = {"긍정": "#2563EB", "부정": "#C2410C", "혼합": "#7C3AED",
@@ -16,10 +18,10 @@ SENTIMENT_COLORS = {"긍정": "#2563EB", "부정": "#C2410C", "혼합": "#7C3AED
 CHART_CONFIG = {"displayModeBar": False, "scrollZoom": False}
 
 
-def response_sentiments(view, opinions):
-    """현재 범위의 VOC를 긍정·부정·혼합·그 외로 한 번씩 센다."""
+def response_sentiment_labels(view, opinions):
+    """집계와 클릭 조회에서 동일한 VOC별 감성 배정을 사용한다."""
     by_voc = opinions.groupby("VOC ID")["감성"].agg(set).to_dict()
-    counts = dict.fromkeys(SENTIMENT_COLORS, 0)
+    labels = {}
     records = view.drop_duplicates("VOC ID")
     for row in records.to_dict("records"):
         values = by_voc.get(row["VOC ID"], set()) if row.get("응답 상태", "의견 있음") == "의견 있음" else set()
@@ -31,10 +33,40 @@ def response_sentiments(view, opinions):
             label = "부정"
         else:
             label = OTHER_SENTIMENT
-        counts[label] += 1
-    denominator = len(records)
+        labels[row["VOC ID"]] = label
+    return pd.Series(labels, dtype="object", name="감성")
+
+
+def response_sentiments(view, opinions):
+    """현재 범위의 VOC를 긍정·부정·혼합·그 외로 한 번씩 센다."""
+    labels = response_sentiment_labels(view, opinions)
+    counts = labels.value_counts().reindex(SENTIMENT_COLORS, fill_value=0)
+    denominator = len(labels)
     return pd.DataFrame([{"감성": label, COUNT: count, PERCENT: count / denominator * 100 if denominator else 0.0}
                          for label, count in counts.items()])
+
+
+def show_sentiment_overview(store, run, view, opinions, prefix):
+    sentiments = response_sentiments(view, opinions)
+    selected = st.session_state.get(prefix + "_dashboard_sentiment")
+    rows = [{"id": row["감성"], "label": row["감성"], "count": int(row[COUNT]),
+             "percent": float(row[PERCENT]), "color": SENTIMENT_COLORS[row["감성"]]}
+            for row in sentiments.to_dict("records") if row[COUNT] or row["감성"] == selected]
+    signature = sha256(json.dumps([run["id"], run["result_revision"], rows,
+        selected, st.session_state.get(prefix + "_chart_epoch", 0)], ensure_ascii=False).encode()).hexdigest()[:20]
+    result = result_bars_renderer()(key=prefix + "_overall_sentiments",
+        data={"variant": "sentiment", "rows": rows, "title": "감성 비중", "signature": signature, "selected": selected,
+              "denominator": int(view["VOC ID"].nunique())}, on_action_change=lambda: None)
+    action = result.action
+    if not action or action.get("nonce") == st.session_state.get(prefix + "_last_sentiment_action"):
+        return None
+    st.session_state[prefix + "_last_sentiment_action"] = action.get("nonce")
+    if (action.get("signature") != signature or
+            store.run(run["id"])["result_revision"] != run["result_revision"]):
+        st.info("결과가 변경되었습니다. 새 화면에서 다시 선택해주세요.")
+    elif action.get("kind") == "filter" and action.get("source_id") in {row["id"] for row in rows}:
+        return action["source_id"]
+    return None
 
 
 def comparison_figure(frame, overall_count):

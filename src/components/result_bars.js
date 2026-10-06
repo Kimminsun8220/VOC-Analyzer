@@ -4,6 +4,7 @@ export default function(component) {
   if (root.dataset.signature === data.signature) return;
   root.dataset.signature = data.signature;
   root.removeAttribute('aria-busy');
+  root.classList.toggle('result-bars-sentiment', data.variant === 'sentiment');
   root.replaceChildren();
   let pending = false, menu = null, drag = null, menuOwner = null;
   const make = (tag, className, text) => {
@@ -23,7 +24,7 @@ export default function(component) {
     pending = true;
     closeMenu();
     root.setAttribute('aria-busy', 'true');
-    status.textContent = kind === 'merge' ? '합치는 중…' : '원문 여는 중…';
+    status.textContent = kind === 'filter' ? '분류 그래프 갱신 중…' : kind === 'merge' ? '합치는 중…' : '원문 여는 중…';
     setTriggerValue('action', {kind, source_id, target_id, signature: data.signature, nonce: crypto.randomUUID()});
   };
   const button = (label, className, action) => {
@@ -31,6 +32,31 @@ export default function(component) {
     result.type = 'button'; result.setAttribute('aria-label', label); result.onclick = action;
     return result;
   };
+  const status = make('p', 'result-bars-status'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+  if (data.variant === 'sentiment') {
+    const track = make('div', 'result-sentiment-track');
+    track.setAttribute('role', 'group'); track.setAttribute('aria-label', '감성 비중');
+    const legend = make('div', 'result-sentiment-legend');
+    for (const row of data.rows) {
+      const selected = data.selected === row.id, muted = Boolean(data.selected && !selected);
+      const label = `${row.label} · ${row.count}건 · ${row.percent.toFixed(1)}% 감성 필터 ${selected ? '해제' : '적용'}`;
+      const segment = button(label, 'result-sentiment-segment', () => send('filter', row.id));
+      segment.setAttribute('aria-pressed', String(selected));
+      segment.style.flexBasis = `${row.percent}%`; segment.style.backgroundColor = muted ? '#e2e8f0' : row.color;
+      segment.style.color = muted || row.id === '무응답/중립/미검토' ? '#0f172a' : 'white';
+      segment.title = `${row.label}\n응답 ${row.count}건 · 전체 ${data.denominator}건의 ${row.percent.toFixed(1)}%\n${selected ? '다시 누르면 전체 보기' : '이 감성으로 분류 그래프 보기'}`;
+      if (row.percent >= 8) segment.append(make('span', '', `${row.percent.toFixed(1)}%`));
+      track.append(segment);
+      const item = button(label, 'result-sentiment-legend-item', () => send('filter', row.id));
+      item.setAttribute('aria-pressed', String(selected)); item.classList.toggle('is-muted', muted);
+      const swatch = make('span', 'result-sentiment-swatch'); swatch.style.backgroundColor = row.color;
+      swatch.setAttribute('aria-hidden', 'true');
+      item.append(swatch, make('span', '', `${row.label} ${row.percent.toFixed(1)}%`));
+      legend.append(item);
+    }
+    root.append(track, legend, status);
+    return;
+  }
   const icon = (path) => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
@@ -90,7 +116,7 @@ export default function(component) {
     grip.onpointerup = () => endDrag(false);
     grip.onpointercancel = () => endDrag(true);
     const control = button(`${row.label} · ${row.count}건 · ${row.percent.toFixed(1)}% 원문 보기`, 'result-bars-open', () => send('open', row.id));
-    control.title = `${row.label}\n응답 ${row.count}건\n전체 응답 대비 ${row.percent.toFixed(1)}% (분모 ${data.denominator}건)`;
+    control.title = `${row.label}\n응답 ${row.count}건\n${data.scope || '전체'} 응답 대비 ${row.percent.toFixed(1)}% (분모 ${data.denominator}건)`;
     const label = make('span', 'result-bars-label', row.label);
     const track = make('span', 'result-bars-track'); track.setAttribute('aria-hidden', 'true');
     const bar = make('span', 'result-bars-bar'); bar.style.width = `${data.maximum ? row.value / data.maximum * 100 : 0}%`;
@@ -103,7 +129,6 @@ export default function(component) {
     item.append(grip, control, more); list.append(item);
   }
   root.append(list);
-  const status = make('p', 'result-bars-status'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
   root.append(status);
   root.onkeydown = event => {
     if (event.key === 'Escape') {

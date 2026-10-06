@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from result_chart_helpers import chart_event, table_event
+from result_chart_helpers import chart_event, table_event, sentiment_data
 from test_grouping import completed, open_results, response_table
 from src.category_summary import OTHER_SENTIMENT, comparison_figure, response_sentiments, sentiment_figure
 from src.chart_data import COUNT, PERCENT
@@ -115,18 +115,18 @@ def test_ui_category_only_visuals_refresh_with_filters_without_changing_ai(compl
     store, run_id, _ = completed
     raw = deepcopy(store.results(run_id))
     app, _ = open_results(completed, monkeypatch)
-    assert len(app.get("plotly_chart")) == 1 and not app.dataframe
+    assert len(app.get("plotly_chart")) == 0 and not app.dataframe
     chart_event(app, "category", "open", ["배송"])
-    assert len(app.get("plotly_chart")) == 3 and len(response_table(app)) == 4
+    assert len(app.get("plotly_chart")) == 2 and len(response_table(app)) == 4
     assert not any("전체 5건의" in caption.value for caption in app.caption)
     assert not app.dataframe
     assert "비율 표" not in [expander.label for expander in app.expander]
     table_event(app, "filter", column="감성", values=["긍정"])
-    assert len(response_table(app)) == 2 and len(app.get("plotly_chart")) == 3
+    assert len(response_table(app)) == 2 and len(app.get("plotly_chart")) == 2
     table_event(app, "filter", column="감성", values=[])
-    assert response_table(app).empty and len(app.get("plotly_chart")) == 1
+    assert response_table(app).empty and len(app.get("plotly_chart")) == 0
     app.button(key=next(button.key for button in app.button if button.label == "전체 보기")).click().run()
-    assert len(app.get("plotly_chart")) == 1 and not app.dataframe and len(response_table(app)) == 5
+    assert len(app.get("plotly_chart")) == 0 and not app.dataframe and len(response_table(app)) == 5
     assert store.results(run_id) == raw
 
 
@@ -135,7 +135,7 @@ def test_leaf_popup_only_pie_uses_selected_sentiments_and_refreshes_after_edit(c
     raw = deepcopy(store.results(run_id))
     app, prefix = open_results(completed, monkeypatch)
     chart_event(app, "code", "open", ["wrong"])
-    assert not app.dataframe and len(app.get("plotly_chart")) == 2
+    assert not app.dataframe and len(app.get("plotly_chart")) == 1
     assert "감성 비중" in [expander.label for expander in app.expander]
     assert not any("100%를 넘을 수 있습니다" in caption.value for caption in app.caption)
     pie = pie_spec(app)
@@ -150,10 +150,10 @@ def test_leaf_popup_only_pie_uses_selected_sentiments_and_refreshes_after_edit(c
     pie = pie_spec(app)
     assert pie["values"] == [1] and pie["customdata"] == [["긍정", 1, 1, 5]]
     table_event(app, "filter", column="감성", values=[])
-    assert response_table(app).empty and len(app.get("plotly_chart")) == 1
+    assert response_table(app).empty and len(app.get("plotly_chart")) == 0
     assert any("표의 필터를 해제" in message.value for message in app.info)
     app.button(key=prefix + "_reset").click().run()
-    assert len(app.get("plotly_chart")) == 1 and not app.dataframe
+    assert len(app.get("plotly_chart")) == 0 and not app.dataframe
     assert store.results(run_id) == raw
 
 
@@ -161,25 +161,27 @@ def test_merged_leaf_popup_counts_mixed_voc_once_without_tables(completed, monke
     app, _ = open_results(completed, monkeypatch)
     chart_event(app, "code", "merge", ["speed"], ["wrong"])
     chart_event(app, "code", "open", ["speed", "wrong"])
-    assert not app.dataframe and len(app.get("plotly_chart")) == 2
+    assert not app.dataframe and len(app.get("plotly_chart")) == 1
     pie = pie_spec(app)
     assert pie["labels"] == ["긍정", "부정", "혼합"]
     assert pie["values"] == [1, 2, 1] and sum(pie["values"]) == len(response_table(app)) == 4
 
 
-def test_main_sentiment_pie_stays_global_and_whole_popup_has_no_visuals(completed, monkeypatch):
+def test_main_sentiment_bar_stays_global_and_whole_popup_has_no_visuals(completed, monkeypatch):
     app, _ = open_results(completed, monkeypatch)
-    assert len(app.get("plotly_chart")) == 1 and not app.dataframe
-    assert pie_spec(app)["values"] == [1, 2, 1, 1]
+    assert len(app.get("plotly_chart")) == 0 and not app.dataframe
+    assert [row["count"] for row in sentiment_data(app)["rows"]] == [1, 2, 1, 1]
     assert not any(box.label in {"분류·감성 비중", "감성 비중"} for box in app.expander)
     table_event(app, "filter", column="VOC 원문", values=None, search="빠름")
-    assert len(response_table(app)) == 2 and pie_spec(app)["values"] == [1, 2, 1, 1]
-    assert pie_spec(app)["customdata"] == [["긍정", 1, 5, 5], ["부정", 2, 5, 5],
-                                          ["혼합", 1, 5, 5], [OTHER_SENTIMENT, 1, 5, 5]]
+    assert len(response_table(app)) == 2
+    assert [row["count"] for row in sentiment_data(app)["rows"]] == [1, 2, 1, 1]
+    assert sentiment_data(app)["denominator"] == 5
     chart_event(app, "code", "merge", ["speed"], ["wrong"])
     next(button for button in app.button if button.label == "전체 원문 보기").click().run()
-    assert len(app.get("plotly_chart")) == 1 and pie_spec(app)["values"] == [1, 2, 1, 1]
+    assert len(app.get("plotly_chart")) == 0
+    assert [row["count"] for row in sentiment_data(app)["rows"]] == [1, 2, 1, 1]
     assert not any(box.label in {"분류·감성 비중", "감성 비중"} for box in app.expander)
     table_event(app, "filter", column="VOC 원문", values=None, search="없음")
-    assert len(response_table(app)) == 1 and pie_spec(app)["values"] == [1, 2, 1, 1]
-    assert len(app.get("plotly_chart")) == 1 and not app.dataframe
+    assert len(response_table(app)) == 1
+    assert [row["count"] for row in sentiment_data(app)["rows"]] == [1, 2, 1, 1]
+    assert len(app.get("plotly_chart")) == 0 and not app.dataframe

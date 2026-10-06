@@ -14,8 +14,7 @@ from src.results import csv_download, result_tables
 from src.storage import Store
 from test_corrections import prepared, rows_for, save
 from test_grouping import completed, response_table, open_results
-from result_chart_helpers import charts, chart_event
-from test_category_summary import pie_spec
+from result_chart_helpers import charts, chart_event, sentiment_data
 from src.category_summary import OTHER_SENTIMENT
 
 
@@ -193,8 +192,8 @@ def test_manual_correction_refreshes_charts_exports_and_selection_revision(prepa
     save(store, run_id, rows)
     app.run()
     assert before_signatures != [data["signature"] for data in chart_specs(app)]
-    sentiments = pie_spec(app)
-    assert sentiments["labels"] == ["부정", OTHER_SENTIMENT] and sentiments["values"] == [1, 1]
+    sentiments = sentiment_data(app)["rows"]
+    assert [(row["label"], row["count"]) for row in sentiments] == [("부정", 1), (OTHER_SENTIMENT, 1)]
     assert not app.dataframe
     assert {row["members"][0] for row in chart_specs(app)[1]["rows"]} == {"C2", "C4"}
     export = dashboard_export(dashboard((store, run_id, codes)), store.run(run_id), store.codebook(book_id), "전체")

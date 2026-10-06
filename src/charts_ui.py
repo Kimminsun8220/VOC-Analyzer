@@ -47,16 +47,24 @@ def bar_figure(frame, label_column, id_column, measure=COUNT, sentiment_colors=F
 
 
 
+def result_bars_renderer():
+    assets = Path(__file__).parent / "components"
+    return st.components.v2.component("result_bars", html='<div class="result-bars"></div>',
+        css=(assets / "result_bars.css").read_text(encoding="utf-8"),
+        js=(assets / "result_bars.js").read_text(encoding="utf-8"), isolate_styles=False)
+
+
 def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
     """두 차트를 드래그로 묶고, 클릭한 범위의 원문 팝업을 연다."""
     if run["status"] != "completed":
         st.info("분류와 검토가 완료되면 전체 분포를 보여줍니다.")
         return
     if grouped.issues.empty:
-        st.info("분류할 의견이 없는 결과입니다. 고객 원문에서 응답 내용을 확인할 수 있습니다.")
+        st.info(f"{sentiment} 응답에는 분류된 의견이 없습니다." if sentiment != "전체" else
+                "분류할 의견이 없는 결과입니다. 고객 원문에서 응답 내용을 확인할 수 있습니다.")
         return
     caption, settings = st.columns([3, 2], vertical_alignment="center")
-    caption.caption(f"전체 응답 {grouped.total_count}건 기준 · 클릭하면 원문 · 끌어 놓으면 합쳐 보기")
+    caption.caption(f"{sentiment} 응답 {grouped.total_count}건 기준 · 클릭하면 원문 · 끌어 놓으면 합쳐 보기")
     with settings.container(horizontal=True, horizontal_alignment="right"):
         with st.popover("표시할 분류 수", width="content"):
             top_n = st.selectbox("표시할 분류 수", ["전체", 5, 10, 20, 50], key=prefix + "_top_n",
@@ -70,10 +78,7 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
     notice = st.session_state.pop(prefix + "_chart_notice", None)
     if notice:
         st.info(notice)
-    assets = Path(__file__).parent / "components"
-    renderer = st.components.v2.component("result_bars", html='<div class="result-bars"></div>',
-        css=(assets / "result_bars.css").read_text(encoding="utf-8"),
-        js=(assets / "result_bars.js").read_text(encoding="utf-8"), isolate_styles=False)
+    renderer = result_bars_renderer()
 
     def show_chart(kind, title):
         frame = grouped_chart(grouped, book["codes"], layout, kind)
@@ -87,7 +92,7 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
                 for row in frame.to_dict("records")]
         result = renderer(key=f"{prefix}_bars_{kind}",
             data={"rows": rows, "title": title, "signature": signature, "denominator": grouped.total_count,
-                  "maximum": float(frame[measure].max()) if len(frame) else 0},
+                  "maximum": float(frame[measure].max()) if len(frame) else 0, "scope": sentiment},
             on_action_change=lambda: None)
         action = result.action
         if action and action.get("nonce") != st.session_state.get(prefix + "_last_chart_action"):

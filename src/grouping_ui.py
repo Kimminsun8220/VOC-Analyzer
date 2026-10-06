@@ -3,7 +3,7 @@
 import streamlit as st
 
 from src.charts_ui import show_dashboard
-from src.category_summary import show_category_summary, show_sentiment_summary
+from src.category_summary import show_category_summary, show_sentiment_summary, show_sentiment_overview
 from src.corrections_ui import show_history, show_response_detail
 from src.grouping import SENTIMENTS, group_results
 from src.result_explorer import (
@@ -47,14 +47,6 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None):
         st.session_state[prefix + "_chart_epoch"] = st.session_state.get(prefix + "_chart_epoch", 0) + 1
         st.session_state[prefix + "_table_epoch"] = st.session_state.get(prefix + "_table_epoch", 0) + 1
 
-    review_count = (~originals["응답 상태"].isin(NORMAL_STATES | FAILED_STATES)).sum()
-    if review_count:
-        if st.button(f"확인이 필요한 응답 {review_count}건 보기", key=prefix + "_review"):
-            reset()
-            st.session_state[prefix + "_filters"] = {"응답 상태": {"values": list(dict.fromkeys(
-                originals.loc[~originals["응답 상태"].isin(NORMAL_STATES | FAILED_STATES), "응답 상태"]))}}
-            st.session_state[prefix + "_show_originals"] = True
-
     mode = st.session_state[mode_key]
     if mode == MODES[0]:
         selected_ids = None
@@ -63,10 +55,30 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None):
     else:
         selected_ids = st.session_state[codes_key]
     baseline = group_results(originals, issues, codes)
-    show_dashboard(store, run, book, baseline, None, "전체", prefix)
     if run["status"] == "completed" and not originals.empty:
         st.subheader("감성 비중", anchor=False)
-        show_sentiment_summary(originals, baseline.issues, len(originals), prefix + "_overall_sentiments")
+        sentiment_scope = show_sentiment_overview(store, run, originals, baseline.issues, prefix)
+        if sentiment_scope:
+            reset()
+            sentiment_key = prefix + "_dashboard_sentiment"
+            st.session_state[sentiment_key] = (None if st.session_state.get(sentiment_key) == sentiment_scope
+                                              else sentiment_scope)
+            st.session_state[prefix + "_show_originals"] = False
+            st.rerun()
+    dashboard_sentiment = st.session_state.get(prefix + "_dashboard_sentiment")
+    if dashboard_sentiment:
+        _, chart_group, _ = filtered_responses(originals, issues, codes, None,
+            {"_response_sentiment": dashboard_sentiment})
+    else:
+        chart_group = baseline
+    review_count = (~originals["응답 상태"].isin(NORMAL_STATES | FAILED_STATES)).sum()
+    if review_count:
+        if st.button(f"확인이 필요한 응답 {review_count}건 보기", key=prefix + "_review"):
+            reset()
+            st.session_state[prefix + "_filters"] = {"응답 상태": {"values": list(dict.fromkeys(
+                originals.loc[~originals["응답 상태"].isin(NORMAL_STATES | FAILED_STATES), "응답 상태"]))}}
+            st.session_state[prefix + "_show_originals"] = True
+    show_dashboard(store, run, book, chart_group, None, dashboard_sentiment or "전체", prefix)
     with st.container(horizontal=True):
         st.download_button("VOC별 분류 다운로드", xlsx_download({"VOC별 분류": classification_frame(originals, issues)}),
             file_name="voc_classifications.xlsx", mime=XLSX_MIME, on_click="ignore", key=prefix + "_download_vocs")
@@ -127,6 +139,7 @@ def show_originals(store, run, book, originals, issues, dataset, prefix, reset):
     mode_key, category_key, codes_key = [f"{prefix}_{key}" for key in ("mode", "categories", "codes")]
     selected_key, editing_key = prefix + "_selected_voc", prefix + "_editing_voc"
     mode = st.session_state[mode_key]
+    dashboard_sentiment = st.session_state.get(prefix + "_dashboard_sentiment")
     if mode == MODES[0]:
         selected_ids = None
     elif mode == MODES[1]:
@@ -134,7 +147,8 @@ def show_originals(store, run, book, originals, issues, dataset, prefix, reset):
     else:
         selected_ids = st.session_state[codes_key]
     if selected_ids is None:
-        scope = "전체 분류"
+        sentiment_scope = dashboard_sentiment
+        scope = f"{sentiment_scope} 응답" if sentiment_scope else "전체 분류"
     elif mode == MODES[1]:
         scope = "/".join(st.session_state[category_key])
     else:
@@ -143,13 +157,17 @@ def show_originals(store, run, book, originals, issues, dataset, prefix, reset):
             scope = f"[{categories[0]}] " + "/".join(code.name for code in codes if code.id in selected_ids)
         else:
             scope = " / ".join(labels[identifier] for identifier in selected_ids)
+    if selected_ids is not None and dashboard_sentiment:
+        scope += f" · {dashboard_sentiment}"
     title, action = st.columns([4, 1], vertical_alignment="center")
     title.subheader(scope or "선택한 분류 없음", anchor=False)
     action.button("전체 보기", on_click=reset, key=prefix + "_reset", width="stretch")
     notice = st.session_state.pop("correction_notice", None)
     if notice:
         st.success(notice)
-    filters = st.session_state.get(prefix + "_filters", {})
+    filters = dict(st.session_state.get(prefix + "_filters", {}))
+    if dashboard_sentiment:
+        filters["_response_sentiment"] = dashboard_sentiment
     view, scoped_group, options = filtered_responses(originals, issues, codes, selected_ids, filters)
     percentage = len(view) / len(originals) * 100 if len(originals) else 0
     if mode != MODES[1]:

@@ -28,3 +28,16 @@
   .result-bars .result-bars-label { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: no-preference) { .result-bars .result-bars-row { transition: background .12s; } }
+.result-bars .result-sentiment-track { display: flex; width: 100%; height: 56px; border-radius: 6px; overflow: hidden; }
+.result-bars .result-sentiment-segment { flex-grow: 0; flex-shrink: 0; min-width: 0; padding: 0; font-size: 14px; font-weight: 500; border-right: 2px solid white; }
+.result-bars .result-sentiment-segment:last-child { border-right: 0; }
+.result-bars .result-sentiment-segment span { display: block; overflow: hidden; white-space: nowrap; }
+.result-bars .result-sentiment-segment:hover { filter: brightness(.94); }
+.result-bars .result-sentiment-segment:focus-visible { outline: 3px solid #0f172a; outline-offset: -4px; box-shadow: inset 0 0 0 6px white; }
+.result-bars .result-sentiment-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 4px; }
+.result-bars .result-sentiment-legend-item { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 0; text-align: left; font-size: 14px; border-radius: 4px; }
+.result-bars .result-sentiment-legend-item:hover { text-decoration: underline; }
+.result-bars .result-sentiment-legend-item[aria-pressed="true"] { font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.result-bars .result-sentiment-legend-item.is-muted .result-sentiment-swatch { opacity: .25; }
+.result-bars .result-sentiment-swatch { width: 12px; height: 12px; flex-shrink: 0; border-radius: 2px; }
+.result-bars-sentiment .result-bars-status:empty { display: none; }

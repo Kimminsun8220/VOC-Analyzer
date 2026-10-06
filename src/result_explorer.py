@@ -7,6 +7,7 @@ from src.chart_data import build_dashboard, dashboard_export
 from src.grouping import group_results
 from src.grouping import SENTIMENTS
 from src.result_groups import grouped_dashboard
+from src.category_summary import response_sentiment_labels
 
 RESPONSE_FILTERS = ["전체", "의견 있음", "내용 없음", "검토 필요", "실패·미처리"]
 NORMAL_STATES = {"의견 있음", "없음·무응답·모름"}
@@ -25,6 +26,10 @@ def filter_options(view):
 def filtered_responses(originals, issues, codes, selected_ids, filters):
     base_group = group_results(originals, issues, codes, selected_ids)
     base = response_view(originals, base_group, selected_ids, "전체")
+    response_sentiment = filters.get("_response_sentiment")
+    if response_sentiment:
+        labels = response_sentiment_labels(originals, issues)
+        base = base[base["VOC ID"].isin(labels.index[labels.eq(response_sentiment)])].copy()
     view = base.copy()
     for column in FILTER_COLUMNS:
         condition = filters.get(column, {})

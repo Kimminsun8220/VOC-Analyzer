@@ -7,7 +7,29 @@ from streamlit.components.v2.bidi_component.main import _make_trigger_id
 
 
 def charts(app):
-    return [chart for chart in app.get("bidi_component") if chart.proto.component_name == "result_bars"]
+    return [chart for chart in app.get("bidi_component") if chart.proto.component_name == "result_bars"
+            and json.loads(chart.proto.json).get("variant") != "sentiment"]
+
+
+def sentiment_chart(app):
+    return next(chart for chart in app.get("bidi_component") if chart.proto.component_name == "result_bars"
+                and json.loads(chart.proto.json).get("variant") == "sentiment")
+
+
+def sentiment_data(app):
+    return json.loads(sentiment_chart(app).proto.json)
+
+
+def sentiment_event(app, label, **extra):
+    chart = sentiment_chart(app)
+    data = sentiment_data(app)
+    action = {"kind": "filter", "source_id": label, "signature": data["signature"], "nonce": uuid4().hex, **extra}
+    widget_state = app._tree.get_widget_states()
+    trigger = widget_state.widgets.add(id=_make_trigger_id(chart.proto.id, "events"))
+    trigger.json_trigger_value = json.dumps([{"event": "action", "value": action}])
+    app._run(widget_state)
+    assert not app.exception and not app.error
+    return app
 
 
 def chart_data(app, level="code"):

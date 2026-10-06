@@ -296,11 +296,11 @@ def test_app_input_to_codebook_to_results_and_reload(monkeypatch):
     app.button(key="start_classification").click().run(timeout=10)
     assert not app.exception and not app.error
     assert app.radio(key="nav").value == "3. 분류 결과"
-    assert app.metric[0].value == "20건"
+    assert any("전체 응답 20건" in caption.value for caption in app.caption)
     assert models == [DEFAULT_MODEL, DEFAULT_MODEL]
     fresh = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     fresh.radio(key="nav").set_value("3. 분류 결과").run()
-    assert fresh.metric[0].value == "20건" and not fresh.exception
+    assert any("전체 응답 20건" in caption.value for caption in fresh.caption) and not fresh.exception
     # 저장된 자료가 있는 상태에서 새 입력을 저장해도 위젯 상태 변경 오류가 없어야 한다.
     fresh.radio(key="nav").set_value("1. 입력").run()
     fresh.button(key="preview_button").click().run()

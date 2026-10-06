@@ -18,7 +18,8 @@ STAT_COLUMNS = ["전체 건수", "%", *[f"{label} (%)" for label in SENTIMENT_CO
 
 
 def classification_frame(originals, issues):
-    classifications = issues.reindex(columns=["VOC ID", "대분류", "세부분류", "감성"])
+    classifications = issues.reindex(columns=["VOC ID", "코드 ID", "대분류", "세부분류", "감성"])
+    classifications = classifications.loc[classifications["코드 ID"].fillna("").ne("")].drop(columns="코드 ID")
     # 같은 분류·감성의 반복 근거는 한 행. 다른 분류와 다른 VOC ID는 보존한다.
     return originals.reindex(columns=["VOC ID", "VOC 원문"]).merge(
         classifications, on="VOC ID", how="left", sort=False).reindex(columns=VOC_COLUMNS).fillna("").drop_duplicates()

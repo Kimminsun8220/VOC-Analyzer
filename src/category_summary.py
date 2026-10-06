@@ -22,7 +22,7 @@ def response_sentiments(view, opinions):
     counts = dict.fromkeys(SENTIMENT_COLORS, 0)
     records = view.drop_duplicates("VOC ID")
     for row in records.to_dict("records"):
-        values = by_voc.get(row["VOC ID"], set())
+        values = by_voc.get(row["VOC ID"], set()) if row.get("응답 상태", "의견 있음") == "의견 있음" else set()
         if {"긍정", "부정"}.issubset(values):
             label = "혼합"
         elif "긍정" in values:

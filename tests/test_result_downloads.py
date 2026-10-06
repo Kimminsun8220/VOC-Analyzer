@@ -13,6 +13,7 @@ from src.category_summary import OTHER_SENTIMENT
 from src.response_table import save_table_sentiment
 from src.result_downloads import classification_frame, statistics_frames, xlsx_download
 from src.result_groups import initial_layout, load_code_group
+from src.models import CodingResult, Issue
 from src.results import result_tables
 
 
@@ -38,6 +39,27 @@ def test_statistics_match_user_example_and_keep_sentiment_denominators_separate(
     assert sheets["세부분류"].iloc[1].tolist() == ["배송", "배송 속도", 2, 40, 100, 0, 0, 0]
     for frame in sheets.values():
         assert frame[["긍정 (%)", "부정 (%)", "혼합 (%)", f"{OTHER_SENTIMENT} (%)"]].sum(axis=1).eq(100).all()
+
+
+@pytest.mark.parametrize("has_matched_opinion", [False, True])
+def test_voc_download_excludes_unmatched_labels_and_retains_original_and_matched_classes(completed, has_matched_opinion):
+    store, run_id, _ = completed
+    opinions = [Issue(code_id=None, sentiment="긍정", evidence_text="오배송", missing_code="새 분류 필요")]
+    if has_matched_opinion:
+        opinions.append(Issue(code_id="wrong", sentiment="부정", evidence_text="오배송"))
+    store.save_result(run_id, 0, "V0002", CodingResult(voc_id="V0002", response_type="opinions", issues=opinions))
+    originals, issues = result_tables(store, run_id)
+    before = originals.copy(deep=True), issues.copy(deep=True)
+    exported = classification_frame(originals, issues)
+    row = exported.loc[exported["VOC ID"].eq("V0002")]
+    expected = ["배송", "오배송", "부정"] if has_matched_opinion else ["", "", ""]
+    assert row[["대분류", "세부분류", "감성"]].values.tolist() == [expected]
+    assert row["VOC 원문"].tolist() == ["오배송"]
+    workbook = load_workbook(BytesIO(xlsx_download({"VOC별 분류": exported})))
+    saved = next(row for row in list(workbook.active.values)[1:] if row[0] == "V0002")
+    assert [value or "" for value in saved[2:]] == expected
+    pd.testing.assert_frame_equal(originals, before[0])
+    pd.testing.assert_frame_equal(issues, before[1])
 
 
 def test_statistics_use_merged_chart_groups_without_changing_voc_classifications(completed):

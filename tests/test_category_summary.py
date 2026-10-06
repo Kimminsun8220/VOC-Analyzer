@@ -12,6 +12,7 @@ from src.category_summary import OTHER_SENTIMENT, comparison_figure, response_se
 from src.chart_data import COUNT, PERCENT
 from src.result_explorer import filtered_responses
 from src.result_groups import grouped_dashboard, initial_layout, load_code_group
+from src.models import CodingResult, Issue
 from src.results import result_tables
 
 
@@ -90,6 +91,24 @@ def test_no_response_neutral_unknown_and_unprocessed_share_one_slice():
     figure = sentiment_figure(sentiments.reset_index(), 6, 6)
     assert list(figure.data[0].labels) == ["긍정", "혼합", OTHER_SENTIMENT]
     assert figure.data[0].text[-1].startswith(OTHER_SENTIMENT + "<br>66.7% · 응답 4건")
+
+
+@pytest.mark.parametrize("has_matched_opinion", [False, True])
+def test_unmatched_code_stays_unreviewed_until_its_classification_is_resolved(completed, has_matched_opinion):
+    store, run_id, _ = completed
+    opinions = [Issue(code_id=None, sentiment="긍정", evidence_text="오배송", missing_code="새 분류 필요")]
+    if has_matched_opinion:
+        opinions.append(Issue(code_id="wrong", sentiment="부정", evidence_text="오배송"))
+    store.save_result(run_id, 0, "V0002", CodingResult(voc_id="V0002", response_type="opinions", issues=opinions))
+    originals, issues = result_tables(store, run_id)
+    assert originals.set_index("VOC ID").loc["V0002", "응답 상태"] == "맞는 코드 없음·검토 필요"
+    sentiments = response_sentiments(originals, issues).set_index("감성")
+    assert sentiments[COUNT].to_dict() == {"긍정": 1, "부정": 1, "혼합": 1, OTHER_SENTIMENT: 2}
+    assert sentiments[PERCENT].sum() == pytest.approx(100)
+    store.save_result(run_id, 0, "V0002", CodingResult(voc_id="V0002", response_type="opinions", issues=[
+        Issue(code_id="wrong", sentiment="긍정", evidence_text="오배송")]))
+    resolved = response_sentiments(*result_tables(store, run_id)).set_index("감성")
+    assert resolved[COUNT].to_dict() == {"긍정": 2, "부정": 1, "혼합": 1, OTHER_SENTIMENT: 1}
 
 
 def test_ui_category_only_visuals_refresh_with_filters_without_changing_ai(completed, monkeypatch):

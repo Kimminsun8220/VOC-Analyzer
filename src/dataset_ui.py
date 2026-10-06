@@ -54,7 +54,7 @@ PICKER_STYLE = """
 }
 .st-key-dataset_dropdown_rows [data-testid="stHorizontalBlock"] {
     display: grid;
-    grid-template-columns: minmax(0, 76fr) minmax(24px, 12fr) minmax(24px, 12fr);
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
     gap: 2px;
     align-items: center;
 }
@@ -63,7 +63,8 @@ PICKER_STYLE = """
 }
 .st-key-dataset_dropdown_rows [class*="st-key-dataset_icon_"] button {
     width: 100%;
-    min-width: 24px;
+    min-width: 44px;
+    min-height: 44px;
     padding-inline: 0;
 }
 .st-key-dataset_dropdown_rows [class*="st-key-dataset_icon_"] button [data-has-shortcut] {
@@ -134,7 +135,7 @@ def rename_dataset(store, identifier):
 
 def delete_dataset(store, identifier):
     try:
-        identifiers = [identifier, *[book["id"] for book in store.list_codebooks(identifier)],
+        identifiers = [identifier, *[book["id"] for book in store.list_codebooks(identifier, include_deleted=True)],
                        *[run["id"] for run in store.list_runs(identifier)]]
         store.delete_dataset(identifier)
     except (ValueError, sqlite3.Error, OSError) as error:

@@ -9,6 +9,20 @@ from src.codebook_changes import code_mapping
 from src.models import CodingResult, Issue, validate_result
 
 
+def inheritance_source(store, book):
+    """현재 기준표의 버전 경로에서 마지막 완료 분석의 수정만 이어받는다."""
+    lineage = {book["id"]}
+    current = book
+    while current["parent_id"]:
+        current = store.codebook(current["parent_id"])
+        lineage.add(current["id"])
+    for run in store.list_runs(book["dataset_id"]):
+        if run["status"] == "completed" and run["codebook_id"] in lineage:
+            # 독립 분석 이후 과거의 수정이 다시 살아나지 않게 여기서 멈춘다.
+            return run if store.correction_snapshot(run["id"]) else None
+    return None
+
+
 def evidence_span(text, quote):
     start = text.find(quote)
     if not quote or start < 0 or text.find(quote, start + 1) >= 0:

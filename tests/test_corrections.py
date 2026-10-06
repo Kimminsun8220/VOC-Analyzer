@@ -12,7 +12,7 @@ from result_chart_helpers import table_event
 from src import ai as ai_module, config
 from src.ai import PROMPT_VERSION
 from src.codebook_changes import code_mapping, edit_codebook, merge_codes, split_code
-from src.corrections import save_correction
+from src.corrections import inheritance_source, save_correction
 from src.corrections_ui import issue_rows
 from src.grouping import group_results
 from src.ingestion import prepare_preview
@@ -435,20 +435,104 @@ def test_no_content_response_keeps_detail_edit_and_cancel_without_writing(prepar
     assert not store.correction_history(run)
 
 
-def test_ui_codebook_edit_and_recode_with_parent(prepared, monkeypatch):
+def test_automatic_source_follows_current_version_ancestors_and_survives_deletion(prepared):
+    store, run, book = prepared
+    change_sentiment(store, run)
+    rows = edit_rows(store, book)
+    rows[0]["name"] = "도착 속도"
+    child = edit_codebook(store, book, rows)
+    dataset = store.run(run)["dataset_id"]
+    unrelated = store.save_codebook(dataset, store.codebook(book)["codes"], "", AI.model, [], "confirmed")
+    other_run = store.create_run(dataset, unrelated, AI.model, PROMPT_VERSION)
+    execute_run(store, other_run, AI())
+    change_sentiment(store, other_run, "부정")
+    assert inheritance_source(store, store.codebook(child))["id"] == run
+    store.delete_codebook(book)
+    assert inheritance_source(store, store.codebook(child))["id"] == run
+    assert inheritance_source(store, store.codebook(unrelated))["id"] == other_run
+
+
+def test_automatic_source_excludes_descendant_and_sibling_analyses(prepared):
+    store, run, book = prepared
+    change_sentiment(store, run)
+    rows = edit_rows(store, book)
+    rows[0]["name"] = "도착 속도"
+    child = edit_codebook(store, book, rows)
+    descendant_run = recode(store, run, child)
+    sibling_rows = edit_rows(store, book)
+    sibling_rows[0]["name"] = "수령 속도"
+    sibling = edit_codebook(store, book, sibling_rows)
+    assert inheritance_source(store, store.codebook(book))["id"] == run
+    assert inheritance_source(store, store.codebook(sibling))["id"] == run
+    assert inheritance_source(store, store.codebook(child))["id"] == descendant_run
+
+
+@pytest.mark.parametrize("status", ["pending", "failed", "needs_review"])
+def test_automatic_source_uses_completed_work_only(prepared, status):
+    store, run, book = prepared
+    change_sentiment(store, run)
+    unfinished = store.create_run(store.run(run)["dataset_id"], book, AI.model, PROMPT_VERSION)
+    store.update_status(unfinished, status)
+    assert inheritance_source(store, store.codebook(book))["id"] == run
+
+
+def test_automatic_source_does_not_resurrect_corrections_after_independent_analysis(prepared):
+    store, run, book = prepared
+    assert inheritance_source(store, store.codebook(book)) is None
+    change_sentiment(store, run)
+    independent = store.create_run(store.run(run)["dataset_id"], book, AI.model, PROMPT_VERSION)
+    execute_run(store, independent, AI())
+    assert inheritance_source(store, store.codebook(book)) is None
+    rows = edit_rows(store, book)
+    rows[0]["name"] = "도착 속도"
+    child = edit_codebook(store, book, rows)
+    assert inheritance_source(store, store.codebook(child)) is None
+
+
+@pytest.mark.parametrize("change, expected_status", [("name", "completed"), ("definition", "needs_review")])
+def test_ui_codebook_edit_and_recode_with_automatic_parent(prepared, monkeypatch, change, expected_status):
     store, run, book = prepared
     change_sentiment(store, run)
     monkeypatch.setattr(config, "load_gemini_key", lambda: "test-key")
     monkeypatch.setattr(ai_module, "GeminiAI", lambda *args: AI())
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     app.radio(key="nav").set_value("2. 분류 기준표").run()
+    dataset = store.run(run)["dataset_id"]
+    assert app.checkbox(key=f"keep_corrections_{dataset}").value is True
+    assert not any(item.label == "수정값을 가져올 이전 분석" for item in app.selectbox)
     draft = deepcopy(app.session_state[f"revise_{book}_draft"])
-    draft["rows"][0]["name"] = "도착 속도"
+    draft["rows"][0][change] = "도착 속도" if change == "name" else "예정일 준수 여부"
     app.session_state[f"revise_{book}_draft"] = draft
     app.button(key=f"revise_{book}_save").click().run()
     assert not app.exception and not app.error
     app.button(key="start_classification").click().run()
     assert not app.exception and not app.error
-    new = store.list_runs(store.run(run)["dataset_id"])[0]
-    assert new["parent_run_id"] == run and new["status"] == "completed"
-    assert rows_for(store, new["id"])[0]["sentiment"] == "중립"
+    new = store.list_runs(dataset)[0]
+    assert new["parent_run_id"] == run and new["status"] == expected_status
+    if change == "name":
+        assert rows_for(store, new["id"])[0]["sentiment"] == "중립"
+    else:
+        assert store.corrections(new["id"])["V0001"]["status"] == "needs_review"
+
+
+def test_ui_unchecked_corrections_survive_version_save_and_start_independent_work(prepared, monkeypatch):
+    store, run, book = prepared
+    change_sentiment(store, run)
+    monkeypatch.setattr(config, "load_gemini_key", lambda: "test-key")
+    monkeypatch.setattr(ai_module, "GeminiAI", lambda *args: AI())
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
+    app.radio(key="nav").set_value("2. 분류 기준표").run()
+    dataset = store.run(run)["dataset_id"]
+    app.checkbox(key=f"keep_corrections_{dataset}").uncheck().run()
+    draft = deepcopy(app.session_state[f"revise_{book}_draft"])
+    draft["rows"][0]["name"] = "도착 속도"
+    app.session_state[f"revise_{book}_draft"] = draft
+    app.button(key=f"revise_{book}_save").click().run()
+    assert app.checkbox(key=f"keep_corrections_{dataset}").value is False
+    app.button(key="start_classification").click().run()
+    assert not app.exception and not app.error
+    new = store.list_runs(dataset)[0]
+    assert new["parent_run_id"] is None and new["status"] == "completed"
+    assert rows_for(store, new["id"])[0]["sentiment"] == "긍정"
+    app.radio(key="nav").set_value("2. 분류 기준표").run()
+    assert not app.checkbox and not app.exception

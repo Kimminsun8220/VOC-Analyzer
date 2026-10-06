@@ -304,11 +304,11 @@ def test_app_input_to_codebook_to_results_and_reload(monkeypatch):
     app.button(key="start_classification").click().run(timeout=10)
     assert not app.exception and not app.error
     assert app.radio(key="nav").value == "3. 분류 결과"
-    assert app.metric[0].value == "20건"
+    assert any("전체 응답 20건" in caption.value for caption in app.caption)
     assert models == [DEFAULT_MODEL, DEFAULT_MODEL]
     fresh = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     fresh.radio(key="nav").set_value("3. 분류 결과").run()
-    assert fresh.metric[0].value == "20건" and not fresh.exception
+    assert any("전체 응답 20건" in caption.value for caption in fresh.caption) and not fresh.exception
     fresh.radio(key="nav").set_value("2. 분류 기준표").run()
     assert not fresh.checkbox
     context_input = fresh.text_area[0]

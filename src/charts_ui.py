@@ -1,15 +1,14 @@
 """공통 묶음 상태의 차트와 결과 해석에 필요한 집계 기준을 제공한다."""
 
-from hashlib import sha256
 from html import escape
-import json
+from pathlib import Path
 import textwrap
 
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.chart_data import COUNT, PERCENT, DENOMINATOR, build_dashboard, chart_selection_values, dashboard_export, selection_scope
-from src.results import csv_download
+from src.chart_data import COUNT, PERCENT, DENOMINATOR
+from src.result_groups import initial_layout, grouped_chart, chart_signature, chart_action, change_layout
 
 SENTIMENT_COLORS = {"긍정": "#2563EB", "부정": "#C2410C", "중립": "#64748B", "판단 불가": "#7C3AED"}
 PRIMARY_FONT = {"family": "Pretendard Variable, Pretendard, sans-serif", "size": 14, "color": "#0F172A", "weight": 500}
@@ -26,7 +25,7 @@ def bar_figure(frame, label_column, id_column, measure=COUNT, sentiment_colors=F
     custom = [[str(row[id_column]), int(row[COUNT]), float(row[PERCENT]), int(row[DENOMINATOR]),
                escape(str(row[label_column])), float(row.get("대분류 내 비율 (%)", 0))] for row in frame.to_dict("records")]
     text = [f"{int(row[COUNT])}건 · {row[PERCENT]:.1f}%" for row in frame.to_dict("records")]
-    hover = "%{customdata[4]}<br>고유 VOC %{customdata[1]}건<br>범위 내 %{customdata[2]:.1f}% (분모 %{customdata[3]}건)"
+    hover = "%{customdata[4]}<br>응답 %{customdata[1]}건<br>전체 응답 대비 %{customdata[2]:.1f}% (분모 %{customdata[3]}건)"
     if "대분류 내 비율 (%)" in frame:
         hover += "<br>대분류 내 %{customdata[5]:.1f}%"
     colors = [SENTIMENT_COLORS[label] for label in labels] if sentiment_colors else "#1E40AF"
@@ -35,10 +34,10 @@ def bar_figure(frame, label_column, id_column, measure=COUNT, sentiment_colors=F
         hovertemplate=hover + "<extra></extra>",
         selected={"marker": {"opacity": 1}}, unselected={"marker": {"opacity": 0.65}}))
     maximum = max(values, default=0)
-    fig.update_layout(height=max(280, min(1500, 42 * len(labels) + 60)), margin=dict(l=12, r=120, t=16, b=40),
+    fig.update_layout(height=max(220, min(1500, 42 * len(labels) + 60)), margin=dict(l=12, r=120, t=16, b=40),
         template="plotly_white", showlegend=False, clickmode="event+select", dragmode=False,
         font=PRIMARY_FONT,
-        xaxis=dict(title=dict(text="고유 VOC 수 (건)" if measure == COUNT else "현재 범위 내 비율 (%)",
+        xaxis=dict(title=dict(text="응답 수 (건)" if measure == COUNT else "전체 응답 대비 (%)",
                               font=SECONDARY_FONT), tickfont=SECONDARY_FONT, rangemode="tozero",
                    range=[0, max(maximum * 1.12, 1)], ticksuffix="" if measure == COUNT else "%", fixedrange=True,
                    dtick=1 if measure == COUNT and maximum <= 10 else None),
@@ -47,99 +46,83 @@ def bar_figure(frame, label_column, id_column, measure=COUNT, sentiment_colors=F
     return fig
 
 
+
 def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
+    """두 차트를 드래그로 묶고, 클릭한 범위의 원문 팝업을 연다."""
     if run["status"] != "completed":
-        st.info("차트는 분류와 승계 검토를 마친 실행에서 제공합니다. 현재 저장된 의견은 아래 표에서 확인하세요.")
+        st.info("분류와 검토가 완료되면 전체 분포를 보여줍니다.")
         return
-    if grouped.voc_count == 0:
-        st.info("시각화할 의견이 없습니다. 선택 범위를 바꾸거나 ‘전체 응답·무응답’ 탭에서 응답 상태를 확인하세요.")
+    if grouped.issues.empty:
+        st.info("분류할 의견이 없는 결과입니다. 고객 원문에서 응답 내용을 확인할 수 있습니다.")
         return
-    filtered = selected_ids is not None or sentiment != "전체"
-    data = build_dashboard(grouped, filtered)
-    denominator_label = "현재 선택 범위의 고유 VOC" if filtered else "전체 원본 응답(무응답 포함)"
-    st.caption(f"비율 기준: {denominator_label} {data.denominator}건 · 복수 분류·감성으로 합계 100% 초과 가능")
-    top = data.codes.iloc[0]
-    with st.container(key=prefix + "_dashboard_summary"):
-        st.html(f"""<style>
-            .st-key-{prefix}_dashboard_summary [data-testid="stMetricValue"] {{
-                font-size: 18px; font-weight: 600; line-height: 1.4;
-            }}
-            .st-key-{prefix}_dashboard_summary .leading-code-label {{
-                font-size: 14px; line-height: 24px; margin: 0;
-            }}
-            .st-key-{prefix}_dashboard_summary .leading-code-value {{
-                font-size: 20px; font-weight: 600; line-height: 1.5;
-                margin: 0; overflow-wrap: anywhere;
-            }}
-        </style>""")
-        top_column, count_column = st.columns([3, 1], vertical_alignment="center")
-        top_column.html(f"""<p class="leading-code-label">가장 많은 세부분류</p>
-            <p class="leading-code-value">[{escape(str(top['대분류']))}] {escape(str(top['세부분류']))} · {int(top[COUNT])}건</p>""")
-        count_column.metric("현재 범위의 대분류", f"{len(data.categories)}개")
-    display = st.radio("차트 표시", ["VOC 건수", "범위 내 비율"], key=prefix + "_measure", horizontal=True)
-    measure = COUNT if display == "VOC 건수" else PERCENT
-    selected_codes = book["codes"]
-    mode_key, category_key, codes_key, sentiment_key = [f"{prefix}_{key}" for key in ("mode", "categories", "codes", "sentiment")]
-    scope_signature = sha256(json.dumps([sorted(selected_ids) if selected_ids is not None else None, sentiment,
-        run["result_revision"], st.session_state.get(prefix + "_chart_epoch", 0)], ensure_ascii=False).encode()).hexdigest()[:16]
+    caption, settings = st.columns([3, 2], vertical_alignment="center")
+    caption.caption(f"전체 응답 {grouped.total_count}건 기준 · 클릭하면 원문 · 끌어 놓으면 합쳐 보기")
+    with settings.container(horizontal=True, horizontal_alignment="right"):
+        with st.popover("표시할 분류 수", width="content"):
+            top_n = st.selectbox("표시할 분류 수", ["전체", 5, 10, 20, 50], key=prefix + "_top_n",
+                help="마지막 순위와 응답 수가 같은 분류는 함께 표시합니다.")
+    measure = COUNT
+    layout_key = prefix + "_layout"
+    if layout_key not in st.session_state:
+        st.session_state[layout_key] = initial_layout(book["codes"])
+    layout = st.session_state[layout_key]
+    signature = chart_signature(run, layout, measure, top_n, st.session_state.get(prefix + "_chart_epoch", 0))
+    notice = st.session_state.pop(prefix + "_chart_notice", None)
+    if notice:
+        st.info(notice)
+    assets = Path(__file__).parent / "components"
+    renderer = st.components.v2.component("result_bars", html='<div class="result-bars"></div>',
+        css=(assets / "result_bars.css").read_text(encoding="utf-8"),
+        js=(assets / "result_bars.js").read_text(encoding="utf-8"), isolate_styles=False)
 
-    def show_selectable(frame, kind, label, identifier, title, notice=None):
-        st.markdown(f"**{title}**", help="막대를 누르면 해당 범위의 원문을 조회합니다." if kind == "category" else None)
-        if notice:
-            with st.container(key=prefix + "_tie_notice"):
-                st.html(f"""<style>
-                    .st-key-{prefix}_tie_notice [data-testid="stCaptionContainer"] p {{
-                        font-size: 12px; font-weight: 400; color: #64748B;
-                    }}
-                </style>""")
-                st.caption(notice)
-        chart_key = f"{prefix}_{kind}_chart_{scope_signature}_{len(frame)}_{measure}"
-
-        def on_select():
-            if store.run(run["id"])["result_revision"] != run["result_revision"]:
-                st.session_state[prefix + "_chart_notice"] = "결과가 수정되어 차트를 갱신했습니다. 새 수치를 보고 다시 선택해주세요."
-                return
-            event = st.session_state.get(chart_key, {})
-            values = chart_selection_values(event, frame[identifier])
-            scope = selection_scope(kind, values, selected_codes, selected_ids, sentiment)
-            if scope is None or scope == (selected_ids, sentiment):
-                return
-            snapshot = {"mode": st.session_state[mode_key], "categories": list(st.session_state.get(category_key, [])),
-                        "codes": list(st.session_state.get(codes_key, [])), "sentiment": sentiment}
-            history = st.session_state.get(prefix + "_chart_history", [])
-            st.session_state[prefix + "_chart_history"] = (history + [snapshot])[-10:]
-            identifiers, next_sentiment = scope
-            if kind != "sentiment":
-                st.session_state[mode_key] = "세부분류 직접 선택"
-                st.session_state[codes_key] = identifiers
-            st.session_state[sentiment_key] = next_sentiment
+    def show_chart(kind, title):
+        frame = grouped_chart(grouped, book["codes"], layout, kind)
+        if top_n != "전체":
+            frame = frame.nlargest(top_n, COUNT, keep="all")
+        extra = len(frame) - top_n if top_n != "전체" else 0
+        if extra > 0:
+            st.caption(f"동률로 {extra}개 더 표시했습니다.")
+        rows = [{"id": row["id"], "label": row["분류"], "count": row[COUNT], "percent": row[PERCENT],
+                 "value": row[measure], "members": row["members"], "code_ids": row["code_ids"]}
+                for row in frame.to_dict("records")]
+        result = renderer(key=f"{prefix}_bars_{kind}",
+            data={"rows": rows, "title": title, "signature": signature, "denominator": grouped.total_count,
+                  "maximum": float(frame[measure].max()) if len(frame) else 0},
+            on_action_change=lambda: None)
+        action = result.action
+        if action and action.get("nonce") != st.session_state.get(prefix + "_last_chart_action"):
+            st.session_state[prefix + "_last_chart_action"] = action.get("nonce")
+            try:
+                following, members, open_popup = chart_action(store, run, layout, kind, frame, signature, action)
+                st.session_state[layout_key] = following
+                st.session_state[prefix + "_mode"] = "대분류로 묶기" if kind == "category" else "세부분류 직접 선택"
+                st.session_state[prefix + ("_categories" if kind == "category" else "_codes")] = members
+                st.session_state[prefix + "_filters"] = {}
+                st.session_state.pop(prefix + "_selected_voc", None)
+                st.session_state.pop(prefix + "_editing_voc", None)
+                st.session_state[prefix + "_table_epoch"] = st.session_state.get(prefix + "_table_epoch", 0) + 1
+                st.session_state[prefix + "_show_originals"] = open_popup
+            except ValueError as exc:
+                st.session_state[prefix + "_chart_notice"] = str(exc)
             st.session_state[prefix + "_chart_epoch"] = st.session_state.get(prefix + "_chart_epoch", 0) + 1
+            st.rerun()
 
-        st.plotly_chart(bar_figure(frame, label, identifier, measure, kind == "sentiment"), width="stretch",
-            key=chart_key, on_select=on_select, selection_mode="points", config=CONFIG)
-
-    left, right = st.columns(2)
-    with left:
-        show_selectable(data.categories.head(20), "category", "대분류", "대분류", "대분류별 고유 VOC")
-        if len(data.categories) > 20:
-            st.caption("상위 20개 · 전체 목록은 집계표에서 확인")
-    with right:
-        show_selectable(data.sentiments, "sentiment", "감성", "감성", "감성이 포함된 고유 VOC")
-    options = [5, 10, 20, 50]
-    top_n = st.selectbox("세부분류 TOP N", options, index=1, key=prefix + "_top_n",
-        help="마지막 순위와 동률인 분류는 모두 표시합니다. 원문과 집계표에는 전체 분류가 포함됩니다.")
-    code_frame = data.codes.nlargest(top_n, COUNT, keep="all").copy()
-    code_frame["분류"] = "[" + code_frame["대분류"] + "] " + code_frame["세부분류"]
-    extra_count = len(code_frame) - top_n
-    show_selectable(code_frame, "code", "분류", "코드 ID", "세부분류별 고유 VOC",
-        notice=f"동률로 {extra_count}개 더 표시했습니다." if extra_count > 0 else None)
-    scope_label = ("전체 분류" if selected_ids is None else " + ".join(
-        f"[{code.category}] {code.name}" for code in selected_codes if code.id in selected_ids)) + f" / 감성: {sentiment}"
-    with st.expander("차트 수치·분모 확인 및 내려받기"):
-        for label, table in [("대분류", data.categories), ("세부분류", data.codes), ("감성", data.sentiments)]:
-            st.markdown(f"**{label} 집계**")
-            st.dataframe(table, hide_index=True, width="stretch", column_config={"코드 ID": None,
-                PERCENT: st.column_config.NumberColumn(PERCENT, format="%.1f"),
-                "대분류 내 비율 (%)": st.column_config.NumberColumn("대분류 내 비율 (%)", format="%.1f")})
-        st.download_button("현재 범위 집계 CSV", csv_download(dashboard_export(data, run, book, scope_label)),
-            file_name="voc_chart_counts.csv", mime="text/csv", key=prefix + "_counts_download")
+    category, code = st.columns(2, gap="large")
+    with category:
+        st.subheader("대분류", anchor=False)
+        show_chart("category", "대분류")
+    with code:
+        st.subheader("세부분류", anchor=False)
+        show_chart("code", "세부분류")
+    if layout["history"]:
+        if st.button("합치기 되돌리기", key=prefix + "_undo_group"):
+            st.session_state[layout_key] = change_layout(layout, "undo")
+            st.session_state[prefix + "_mode"] = "전체 보기"
+            st.session_state[prefix + "_categories"] = []
+            st.session_state[prefix + "_codes"] = []
+            st.session_state[prefix + "_filters"] = {}
+            st.session_state[prefix + "_table_epoch"] = st.session_state.get(prefix + "_table_epoch", 0) + 1
+            st.session_state[prefix + "_show_originals"] = False
+            st.session_state.pop(prefix + "_selected_voc", None)
+            st.session_state.pop(prefix + "_editing_voc", None)
+            st.rerun()

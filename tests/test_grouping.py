@@ -12,6 +12,7 @@ from src.ingestion import prepare_preview
 from src.models import Code, CodingResult, Issue
 from src.results import csv_download, result_tables
 from src.storage import Store
+from result_chart_helpers import chart_event, table_spec, table_event
 
 
 @pytest.fixture
@@ -124,55 +125,64 @@ def open_results(completed, monkeypatch):
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     app.radio(key="nav").set_value("3. 분류 결과").run()
     assert not app.exception and not app.error
+    app.button(key=prefix + "_open_originals").click().run()
+    assert not app.exception and not app.error
     return app, prefix
 
 
-def metric_value(app, label):
-    return next(metric.value for metric in app.metric if metric.label == label)
+def response_table(app):
+    return pd.DataFrame(table_spec(app)["rows"]).rename(columns={"id": "VOC ID"})
+
+
+def select_response(app, voc_id):
+    if response_table(app).empty:
+        next(button for button in app.button if button.label == "전체 원문 보기").click().run()
+    return table_event(app, "select", id=voc_id)
 
 
 def test_ui_selection_parent_sentiment_empty_and_reset(completed, monkeypatch):
     app, prefix = open_results(completed, monkeypatch)
-    app.radio(key=prefix + "_mode").set_value("세부분류 직접 선택").run()
-    assert "묶음의 고유 VOC" not in [metric.label for metric in app.metric]
-    app.multiselect(key=prefix + "_codes").set_value(["speed", "wrong"]).run()
-    assert metric_value(app, "묶음의 고유 VOC") == "4건"
-    assert metric_value(app, "전체 응답 대비") == "80.0%"
-    app.selectbox(key=prefix + "_sentiment").set_value("긍정").run()
-    assert metric_value(app, "묶음의 고유 VOC") == "2건"
-    app.multiselect(key=prefix + "_codes").set_value(["wrong"]).run()
-    assert metric_value(app, "묶음의 고유 VOC") == "0건"
+    chart_event(app, "code", "merge", ["speed"], ["wrong"])
+    chart_event(app, "code", "open", ["speed", "wrong"])
+    assert len(response_table(app)) == 4
+    assert any("전체 5건의 80.0%" in caption.value for caption in app.caption)
+    table_event(app, "filter", column="감성", values=["긍정"])
+    assert len(response_table(app)) == 2
+    app.button(key=prefix + "_undo_group").click().run()
+    chart_event(app, "code", "open", ["wrong"])
+    table_event(app, "filter", column="감성", values=["긍정"])
+    assert response_table(app).empty
     app.button(key=prefix + "_reset").click().run()
-    assert app.radio(key=prefix + "_mode").value == "전체 보기"
-    assert app.selectbox(key=prefix + "_sentiment").value == "전체"
-    app.radio(key=prefix + "_mode").set_value("대분류로 묶기").run()
-    app.multiselect(key=prefix + "_categories").set_value(["배송"]).run()
-    assert metric_value(app, "묶음의 고유 VOC") == "4건"
+    assert app.session_state[prefix + "_mode"] == "전체 보기"
+    assert app.session_state[prefix + "_filters"] == {}
+    chart_event(app, "category", "open", ["배송"])
+    assert len(response_table(app)) == 4
     assert not app.exception and not app.error
 
 
 def test_ui_save_load_and_new_session(completed, monkeypatch):
     store, run_id, _ = completed
     app, prefix = open_results(completed, monkeypatch)
-    app.radio(key=prefix + "_mode").set_value("세부분류 직접 선택").run()
-    app.multiselect(key=prefix + "_codes").set_value(["speed", "wrong"]).run()
-    app.selectbox(key=prefix + "_sentiment").set_value("부정").run()
+    chart_event(app, "code", "merge", ["speed"], ["wrong"])
+    assert not app.session_state[prefix + "_show_originals"]
+    assert app.button(key=prefix + "_save").label == "저장"
+    app.selectbox(key=prefix + "_group_sentiment").set_value("부정").run()
     app.text_input(key=prefix + "_name").set_value("배송 문제").run()
     app.button(key=prefix + "_save").click().run()
     assert len(store.list_groups(run_id)) == 1 and not app.exception
+    assert not app.session_state[prefix + "_show_originals"]
     fresh, prefix = open_results(completed, monkeypatch)
     fresh.button(key=prefix + "_load").click().run()
-    assert fresh.multiselect(key=prefix + "_codes").value == ["speed", "wrong"]
-    assert fresh.selectbox(key=prefix + "_sentiment").value == "부정"
-    assert metric_value(fresh, "묶음의 고유 VOC") == "3건"
+    assert fresh.session_state[prefix + "_codes"] == ["speed", "wrong"]
+    assert fresh.session_state[prefix + "_filters"] == {"감성": {"values": ["부정"]}}
+    assert len(response_table(fresh)) == 3
     assert not fresh.exception and not fresh.error
 
 
 def test_ui_keeps_selections_scoped_to_run_and_marks_partial_counts(completed, monkeypatch):
     store, run_id, _ = completed
     app, prefix = open_results(completed, monkeypatch)
-    app.radio(key=prefix + "_mode").set_value("세부분류 직접 선택").run()
-    app.multiselect(key=prefix + "_codes").set_value(["wrong"]).run()
+    chart_event(app, "code", "open", ["wrong"])
     first = store.run(run_id)
     second = store.create_run(first["dataset_id"], first["codebook_id"], "test", "test")
     for result in store.results(run_id):
@@ -181,10 +191,10 @@ def test_ui_keeps_selections_scoped_to_run_and_marks_partial_counts(completed, m
     app.run()
     app.selectbox(key=f"result_choice_{first['dataset_id']}").set_value(second).run()
     second_prefix = f"group_{second}_{first['codebook_id']}"
-    assert app.radio(key=second_prefix + "_mode").value == "전체 보기"
-    assert metric_value(app, "묶음의 고유 VOC") == "4건"
-    assert any("잠정" in warning.value for warning in app.warning)
-    app.radio(key=second_prefix + "_mode").set_value("세부분류 직접 선택").run()
-    app.multiselect(key=second_prefix + "_codes").set_value(["speed"]).run()
+    assert app.session_state[second_prefix + "_mode"] == "전체 보기"
+    assert response_table(app).empty
+    app.button(key=second_prefix + "_open_originals").click().run()
+    assert len(response_table(app)) == 5
+    assert any("잠정" in caption.value for caption in app.caption)
     assert second_prefix + "_save" not in [button.key for button in app.button]
     assert not app.exception and not app.error

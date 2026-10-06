@@ -3,7 +3,6 @@
 from collections import Counter
 from hashlib import sha256
 from datetime import datetime, timedelta, timezone
-import json
 from pathlib import Path
 import sqlite3
 
@@ -16,13 +15,11 @@ from src.codebook_ui import show_codebook_changes
 from src.codebook_picker_ui import show_codebook_picker
 from src.codebook_table import table_has_changes
 from src.corrections import inheritance_source
-from src.corrections_ui import show_corrections
 from src.dataset_ui import clear_deleted_dataset_state, show_dataset_picker
 from src.grouping_ui import show_grouped_results
 from src.ingestion import excel_sheet_names, prepare_preview, read_csv, read_excel, read_pasted_text
-from src.results import STATUS_LABELS, csv_download, result_tables
+from src.results import STATUS_LABELS, result_tables
 from src.storage import Store
-from src.summary_ui import show_compact_metrics
 from src.workflow import execute_run, generate_codebook
 
 SAMPLE_PATH = Path(__file__).parent / "data" / "samples" / "voc_sample.csv"
@@ -174,15 +171,15 @@ def results_screen(store, dataset):
         st.session_state[key] = pending
     if key not in st.session_state:
         st.session_state[key] = next((item["id"] for item in runs if item["status"] == "completed"), runs[0]["id"])
-    selected = st.selectbox("저장된 분석 실행", list(labels), format_func=labels.get, key=key)
+    _, history = st.columns([1, 2], vertical_alignment="center")
+    selected = history.selectbox("저장된 분석 실행", list(labels), format_func=labels.get, key=key,
+        label_visibility="collapsed")
     run = store.run(selected)
     book = store.codebook(run["codebook_id"])
     originals, issues = result_tables(store, selected)
+    empty_count = originals['응답 상태'].eq('없음·무응답·모름').sum()
     book_name = f"{book['name']} · " if book["name"] else ""
-    st.caption(f"분류 기준표 {book_name}v{book['version']}")
-    correction_notice = st.session_state.pop("correction_notice", None)
-    if correction_notice:
-        st.success(correction_notice)
+    st.caption(f"분류 기준표 {book_name}v{book['version']} · 전체 응답 {len(originals)}건 · 내용 없는 응답 {empty_count}건")
     if run["status"] != "completed":
         st.warning(f"{STATUS_LABELS[run['status']]} · {run['error'] or '저장된 지점부터 이어서 처리할 수 있습니다.'}")
         if st.button("보완 이어서 실행 (최대 2회 추가)" if run["status"] == "needs_review" else "실패·미처리 이어서 실행", key="resume_run"):
@@ -192,35 +189,7 @@ def results_screen(store, dataset):
                 run_with_progress(store, selected, ai)
             with_ai(resume, run["model"])
             st.rerun()
-    pending_count = (~originals['응답 상태'].isin(['의견 있음', '없음·무응답·모름'])).sum()
-    show_compact_metrics([
-        ("원본 응답", f"{len(originals)}건", None),
-        ("의견 있는 응답", f"{originals['응답 상태'].isin(['의견 있음', '맞는 코드 없음·검토 필요']).sum()}건", None),
-        ("없음·무응답·모름", f"{originals['응답 상태'].eq('없음·무응답·모름').sum()}건", None),
-        ("실패·미처리·검토", f"{pending_count}건", None),
-    ], key=f"result_summary_{selected}", muted_labels=("실패·미처리·검토",) if pending_count == 0 else ())
-    with st.expander("분석 정보"):
-        st.caption(f"모델 {run['model']} · 자동 보완 {run['round']}회 · 결과 개정 {run['result_revision']}")
-        if run["parent_run_id"]:
-            st.caption(f"이전 분석 {run['parent_run_id'][:6]} · 결과 개정 {run['parent_result_revision']}")
-        st.text(run["context"] or "배경 없음")
-        st.dataframe(code_frame(book["codes"]).rename(columns=CODE_COLUMNS), hide_index=True, width="stretch")
-        st.json(book["changes"])
-    tab_issues, tab_originals, tab_corrections = st.tabs(["시각화·묶어보기", "전체 응답·무응답", "개별 수정·승계 검토"],
-        key=f"results_tabs_{selected}", on_change="rerun")
-    with tab_issues:
-        show_grouped_results(store, run, book, originals, issues)
-    with tab_originals:
-        state = st.selectbox("응답 상태 필터", ["전체"] + list(originals["응답 상태"].unique()))
-        st.dataframe(originals if state == "전체" else originals[originals["응답 상태"] == state], hide_index=True, width="stretch")
-        st.download_button("전체 응답 CSV", csv_download(originals), file_name="voc_responses.csv", mime="text/csv")
-    with tab_corrections:
-        show_corrections(store, run, book, dataset)
-    with st.expander("분석 기록 내려받기"):
-        st.download_button("실행 기록 JSON", json.dumps({"run": run, "records": dataset["records"],
-            "codes": [c.model_dump() for c in book["codes"]], "results": store.results(selected),
-            "current_results": store.effective_results(selected), "corrections": store.correction_history(selected)}, ensure_ascii=False, indent=2),
-            file_name="voc_run.json", mime="application/json")
+    show_grouped_results(store, run, book, originals, issues, dataset)
 
 
 def main():

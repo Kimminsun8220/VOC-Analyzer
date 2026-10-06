@@ -26,13 +26,14 @@ PICKER_STYLE += """
     position: fixed !important;
     position-anchor: --saved-groups-actions-trigger;
     transform: none !important;
-    top: auto !important;
-    bottom: anchor(top);
+    top: anchor(bottom) !important;
+    bottom: auto !important;
     left: clamp(8px, anchor(left), calc(100vw - 328px)) !important;
     width: 320px !important;
     max-width: calc(100vw - 16px) !important;
-    margin-bottom: 8px;
-    max-height: 60dvh !important;
+    margin-top: 8px;
+    max-height: min(70dvh, calc(100dvh - 110px)) !important;
+    overflow-y: auto;
 }
 </style>
 """

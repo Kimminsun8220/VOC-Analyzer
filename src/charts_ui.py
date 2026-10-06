@@ -55,7 +55,7 @@ def result_bars_renderer():
         js=(assets / "result_bars.js").read_text(encoding="utf-8"), isolate_styles=False)
 
 
-def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix, originals):
+def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix, originals, *, controls_container=None):
     """대분류에서 세부분류로 탐색하고 세부분류 원문을 연다."""
     if run["status"] != "completed":
         st.info("분류와 검토가 완료되면 전체 분포를 보여줍니다.")
@@ -64,11 +64,15 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix, o
         st.info(f"{sentiment} 응답에는 분류된 의견이 없습니다." if sentiment != "전체" else
                 "분류할 의견이 없는 결과입니다. 고객 원문에서 응답 내용을 확인할 수 있습니다.")
         return
-    caption, settings = st.columns([3, 2], vertical_alignment="center")
+    controls = controls_container if controls_container is not None else st.container()
+    with controls.container(key="result_display_controls", horizontal=True, horizontal_alignment="right", vertical_alignment="center", gap="small"):
+        caption = st.container(width="content")
+        settings = st.container(width="content")
     caption.caption(f"{sentiment} 응답 {grouped.total_count}건 기준",
         help="분류별 고유 응답 수를 현재 감성의 전체 응답 수로 나눕니다. 대분류를 선택해도 분모는 유지하며, 한 응답에 여러 분류가 있으면 분류 비율의 합은 100%를 넘을 수 있습니다.")
     with settings.container(horizontal=True, horizontal_alignment="right"):
-        with st.popover("표시할 분류 수", width="content"):
+        current_limit = st.session_state.get(prefix + "_top_n", "전체")
+        with st.popover("전체 분류" if current_limit == "전체" else f"상위 {current_limit}개", width="content", help="표시할 분류 수"):
             top_n = st.selectbox("표시할 분류 수", ["전체", 5, 10, 20, 50], key=prefix + "_top_n",
                 help="마지막 순위와 응답 수가 같은 분류는 함께 표시합니다.")
     measure = COUNT
@@ -136,15 +140,17 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix, o
             st.rerun()
 
     with st.container(key="result_analysis"):
-        category, code = st.columns([2, 3], gap="large")
+        category, code = st.columns([1, 1.15], gap="large")
     with category:
-        st.subheader("대분류", anchor=False)
+        with st.container(key="result_category_heading"):
+            st.subheader("대분류", anchor=False)
         show_chart("category", "대분류")
     with code:
-        st.subheader("세부분류" + (" · " + "/".join(drill) if drill else ""), anchor=False)
-        if drill:
-            from src.category_summary import show_category_context
-            show_category_context(store, run, originals, grouped.issues, drill, sentiment, prefix)
+        with st.container(key="result_code_heading"):
+            st.subheader("세부분류" + (" · " + "/".join(drill) if drill else ""), anchor=False)
+            if drill:
+                from src.category_summary import show_category_context
+                show_category_context(store, run, originals, grouped.issues, drill, sentiment, prefix)
         if drill and category_sentiment and code_group.issues.empty:
             st.caption("현재 조건에 해당하는 세부분류가 없습니다.")
         show_chart("code", "세부분류")

@@ -189,7 +189,6 @@ def show_codebook_picker(store, dataset_id, books):
     if st.session_state.get(EDIT_KEY) not in labels:
         st.session_state.pop(EDIT_KEY, None)
     st.html(PICKER_STYLE)
-    st.markdown("분류 기준표 버전")
     with st.popover(labels[st.session_state[choice_key]], key=PICKER_KEY,
                     on_change=picker_changed, width="stretch", wrap=False):
         with st.container(key="codebook_dropdown_rows", gap="xxsmall"):

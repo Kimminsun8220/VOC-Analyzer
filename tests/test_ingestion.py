@@ -79,9 +79,10 @@ def test_old_sample_selection_and_preview_are_cleared():
     assert not any(button.key == "save_input" for button in app.button)
 
 
-def test_empty_paste_shows_friendly_error():
+def test_empty_paste_disables_preview_until_content_is_entered():
     app = AppTest.from_file(APP_PATH).run()
     app.radio[0].set_value("직접 붙여넣기").run()
-    app.button(key="preview_button").click().run()
-    assert "확인할 VOC가 없습니다" in app.error[0].value
+    assert app.button(key="preview_button").disabled
+    assert not app.dataframe
+    assert not any(button.key == "save_input" for button in app.button)
     assert not app.exception

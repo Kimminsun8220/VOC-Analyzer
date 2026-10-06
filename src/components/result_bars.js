@@ -84,7 +84,7 @@ export default function(component) {
       item.append(swatch, make('span', '', `${selected ? '✓ ' : ''}${row.label} ${row.percent.toFixed(1)}%`));
       legend.append(item);
     }
-    root.append(track, legend, status);
+    root.append(legend, track, status);
     return;
   }
   const icon = (path) => {
@@ -157,7 +157,7 @@ export default function(component) {
     const track = make('span', 'result-bars-track'); track.setAttribute('aria-hidden', 'true');
     const bar = make('span', 'result-bars-bar'); bar.style.width = `${data.maximum ? row.value / data.maximum * 100 : 0}%`;
     track.append(bar);
-    control.append(label, track, make('span', 'result-bars-value', `${row.count}건 · ${row.percent.toFixed(1)}%`));
+    control.append(label, make('span', 'result-bars-value', `${row.count}건 · ${row.percent.toFixed(1)}%`), track);
     const more = button(`합칠 분류 선택: ${row.label}`, 'result-bars-more', () => openMenu(row, more, item));
     more.append(icon('M12 5h.01M12 12h.01M12 19h.01'));
     more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');

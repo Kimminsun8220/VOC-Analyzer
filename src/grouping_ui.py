@@ -17,7 +17,10 @@ from src.saved_groups_ui import show_saved_group_picker
 MODES = ["전체 보기", "대분류로 묶기", "세부분류 직접 선택"]
 
 
-def show_grouped_results(store, run, book, originals, issues, dataset=None):
+def show_grouped_results(store, run, book, originals, issues, dataset=None, *, tools_container=None):
+    if tools_container is None:
+        tools_container = st.container(key="result_header_tools", horizontal=True,
+            horizontal_alignment="right", vertical_alignment="center", gap="small")
     prefix = f"group_{run['id']}_{book['id']}"
     codes = book["codes"]
     labels = {code.id: f"[{code.category}] {code.name}" for code in codes}
@@ -59,7 +62,7 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None):
         selected_ids = st.session_state[codes_key]
     baseline = group_results(originals, issues, codes)
     if run["status"] == "completed" and not originals.empty:
-        st.subheader("감성으로 좁혀보기", anchor=False)
+        st.subheader("감성 비중", anchor=False)
         sentiment_scope = show_sentiment_overview(store, run, originals, baseline.issues, prefix)
         if sentiment_scope:
             reset()
@@ -78,8 +81,10 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None):
         chart_group = baseline
     drill = st.session_state.get(prefix + "_drill_categories", [])
     category_sentiment = st.session_state.get(prefix + "_category_sentiment") if drill else None
+    with st.container(key="result_filter_toolbar"):
+        conditions, display_controls = st.columns([1, 1], vertical_alignment="center", gap="small")
     if dashboard_sentiment or drill:
-        with st.container(horizontal=True, vertical_alignment="center"):
+        with conditions.container(key="result_conditions", horizontal=True, vertical_alignment="center", gap="xxsmall"):
             if dashboard_sentiment:
                 if st.button(f"{dashboard_sentiment} ×", key=prefix + "_clear_sentiment", type="tertiary"):
                     st.session_state[prefix + "_dashboard_sentiment"] = None
@@ -120,7 +125,8 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None):
                 originals.loc[~originals["응답 상태"].isin(NORMAL_STATES | FAILED_STATES), "응답 상태"]))}}
             st.session_state[prefix + "_show_originals"] = True
             st.rerun()
-    show_dashboard(store, run, book, chart_group, None, dashboard_sentiment or "전체", prefix, originals)
+    show_dashboard(store, run, book, chart_group, None, dashboard_sentiment or "전체", prefix, originals,
+        controls_container=display_controls)
     group_notice = st.session_state.pop(prefix + "_notice", None)
     if group_notice:
         st.success(group_notice)
@@ -133,7 +139,7 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None):
     save_ids = selected_ids
     if save_ids is None and drill:
         save_ids = [code.id for code in codes if code.category in drill]
-    with actions.popover("지금 분류 저장", icon=":material/account_tree:", key="saved_groups_actions"):
+    with tools_container.popover("지금 분류 저장", icon=":material/save:", key="saved_groups_actions"):
         layout = st.session_state.get(prefix + "_layout", initial_layout(codes))
         if layout["history"]:
             if st.button("합치기 되돌리기", key=prefix + "_undo_group"):
@@ -173,7 +179,7 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None):
             show_saved_group_picker(store, run["id"], [], prefix)
         if not save_ids:
             st.caption("저장할 분류를 차트에서 선택해주세요.")
-    with actions.popover("다운로드", icon=":material/download:"):
+    with tools_container.popover("다운로드", icon=":material/download:"):
         st.caption("전체 자료 기준")
         st.download_button("VOC별 분류 다운로드", xlsx_download({"VOC별 분류": classification_frame(originals, issues)}),
             file_name="voc_classifications.xlsx", mime=XLSX_MIME, on_click="ignore", key=prefix + "_download_vocs")

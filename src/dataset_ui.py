@@ -176,7 +176,7 @@ def icon_button(label, icon, action, args, key, *, disabled=False, help=None, su
            disabled=disabled, help=help or label)
 
 
-def show_dataset_picker(store, datasets):
+def show_dataset_picker(store, datasets, *, compact=False):
     labels = dataset_labels(datasets)
     if st.session_state.get("dataset_id") not in labels:
         st.session_state.dataset_id = datasets[0]["id"]
@@ -184,7 +184,8 @@ def show_dataset_picker(store, datasets):
     if notice:
         st.toast(notice)
     st.html(PICKER_STYLE)
-    st.markdown("저장된 입력 자료")
+    if not compact:
+        st.markdown("저장된 입력 자료")
     with st.popover(labels[st.session_state.dataset_id], key=PICKER_KEY,
                     on_change=picker_changed, width="stretch", wrap=False):
         with st.container(key="dataset_dropdown_rows", gap="xxsmall"):

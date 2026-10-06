@@ -35,9 +35,9 @@
 
 /* Result workspace approved in the image preview. */
 [data-testid="stSidebar"] [role="radiogroup"] label { position: relative; padding: 12px 14px; border-left: 3px solid transparent; }
-[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) { border-left-color: var(--voc-primary); background: var(--voc-selected); }
+[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) { background: var(--voc-selected); }
 [data-testid="stSidebar"] [role="radiogroup"] label p { font-size: 15px; font-weight: 550; }
-[data-testid="stSidebar"] [role="radiogroup"] label:focus-within { outline: 2px solid var(--voc-primary); outline-offset: 2px; }
+[data-testid="stSidebar"] [role="radiogroup"] label:has(input:focus-visible) { outline: 2px solid var(--voc-primary); outline-offset: 2px; }
 .st-key-result_header { gap: 20px !important; }
 .st-key-result_header h2 { font-size: 32px; font-weight: 750; letter-spacing: -1px; padding: 0; white-space: nowrap; }
 .st-key-result_header_tools { min-width: 270px; }
@@ -113,13 +113,11 @@
 .st-key-input_identity { margin-bottom: 20px; }
 .st-key-input_identity input { min-height: 44px; }
 .st-key-input_source { margin-bottom: 20px; }
-.st-key-input_source [role="radiogroup"] { gap: 0; }
-.st-key-input_source [data-testid="stRadioOption"] { min-height: 44px; padding: 10px 28px; margin: 0; border: 1px solid var(--voc-border); }
-.st-key-input_source [data-testid="stRadioOption"]:first-child { border-radius: 6px 0 0 6px; }
-.st-key-input_source [data-testid="stRadioOption"]:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
+.st-key-input_source [role="radiogroup"] { gap: 10px; }
+.st-key-input_source [data-testid="stRadioOption"] { min-height: 44px; padding: 10px 28px; margin: 0; border: 1px solid var(--voc-border); border-radius: var(--voc-radius); }
 .st-key-input_source [data-testid="stRadioOption"]:has(input:checked) { background: var(--voc-selected); color: var(--voc-primary); }
 .st-key-input_source [data-testid="stRadioOption"] > div > div:first-child { display: none; }
-.st-key-input_source [data-testid="stRadioOption"]:focus-within { outline: 2px solid var(--voc-primary); outline-offset: 2px; }
+.st-key-input_source [data-testid="stRadioOption"]:has(input:focus-visible) { outline: 2px solid var(--voc-primary); outline-offset: 2px; }
 .st-key-input_background { margin-block: 20px; }
 .st-key-input_background button, .st-key-input_actions button, .st-key-codebook_actions button { min-height: 44px; }
 .st-key-input_actions { border-top: 1px solid var(--voc-border); padding-top: 24px; margin-top: 8px; }

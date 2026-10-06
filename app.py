@@ -48,7 +48,7 @@ def input_screen(store):
         st.header("데이터 입력", anchor=False)
     with st.container(key="input_identity", width=500):
         name = st.text_input("분석 이름", value="새 VOC 분석", max_chars=100)
-    input_modes = ["직접 붙여넣기", "파일 업로드"]
+    input_modes = ["파일 업로드", "직접 붙여넣기"]
     if st.session_state.get("input_mode") not in (None, *input_modes):
         st.session_state.pop("input_mode", None)
         st.session_state.pop("preview", None)

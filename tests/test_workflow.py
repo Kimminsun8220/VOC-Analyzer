@@ -287,6 +287,7 @@ def test_app_input_to_codebook_to_results_and_reload(monkeypatch):
     monkeypatch.setattr(ai_module, "GeminiAI", service)
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     sample = read_csv((Path(__file__).resolve().parents[1] / "data/samples/voc_sample.csv").read_bytes())
+    app.radio(key="input_mode").set_value("직접 붙여넣기").run()
     app.text_area(key="voc_text").set_value("\n".join(sample["VOC"])).run()
     app.button(key="preview_button").click().run()
     app.button(key="save_input").click().run()
@@ -321,6 +322,7 @@ def test_app_input_to_codebook_to_results_and_reload(monkeypatch):
     assert not fresh.button(key="start_classification").disabled
     # 저장된 자료가 있는 상태에서 새 입력을 저장해도 위젯 상태 변경 오류가 없어야 한다.
     fresh.radio(key="nav").set_value("1. 입력").run()
+    fresh.radio(key="input_mode").set_value("직접 붙여넣기").run()
     fresh.text_area(key="voc_text").set_value("배송이 빠름").run()
     fresh.button(key="preview_button").click().run()
     fresh.button(key="save_input").click().run()

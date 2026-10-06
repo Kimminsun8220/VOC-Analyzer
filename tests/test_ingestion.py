@@ -52,7 +52,9 @@ def test_empty_and_oversized_inputs_report_errors():
 def test_pasted_input_changes_do_not_show_stale_results():
     app = AppTest.from_file(APP_PATH).run()
     assert not app.exception
-    assert app.radio(key="input_mode").options == ["직접 붙여넣기", "파일 업로드"]
+    assert app.radio(key="input_mode").options == ["파일 업로드", "직접 붙여넣기"]
+    assert app.radio(key="input_mode").value == "파일 업로드"
+    app.radio(key="input_mode").set_value("직접 붙여넣기").run()
     assert app.text_area(key="voc_text").value == ""
     app.text_area(key="voc_text").set_value("배송이 늦어요\n\n친절해요").run()
     app.button(key="preview_button").click().run()
@@ -74,14 +76,14 @@ def test_old_sample_selection_and_preview_are_cleared():
     app.session_state["preview"] = ("old-sample", prepare_preview(pd.DataFrame({"VOC": ["연습용 의견"]}), "VOC"))
     app.run()
     assert not app.exception
-    assert app.radio(key="input_mode").value == "직접 붙여넣기"
+    assert app.radio(key="input_mode").value == "파일 업로드"
     assert "preview" not in app.session_state
     assert not any(button.key == "save_input" for button in app.button)
 
 
 def test_empty_paste_disables_preview_until_content_is_entered():
     app = AppTest.from_file(APP_PATH).run()
-    app.radio[0].set_value("직접 붙여넣기").run()
+    app.radio(key="input_mode").set_value("직접 붙여넣기").run()
     assert app.button(key="preview_button").disabled
     assert not app.dataframe
     assert not any(button.key == "save_input" for button in app.button)

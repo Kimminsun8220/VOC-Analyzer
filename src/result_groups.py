@@ -1,6 +1,7 @@
 """기존 분류를 바꾸지 않고 차트의 묶음과 고유 응답 집계를 관리한다."""
 
 from copy import deepcopy
+from dataclasses import replace
 from hashlib import sha256
 import json
 
@@ -90,6 +91,21 @@ def chart_signature(run, layout, measure, top_n, epoch):
     return sha256(json.dumps([run["result_revision"], layout["revision"], measure, top_n, epoch]).encode()).hexdigest()[:20]
 
 
+def drill_code_chart(grouped, codes, layout, categories):
+    """대분류 안의 코드만 표시하되 감성 응답의 분모와 원래 묶음을 보존한다."""
+    if not categories:
+        return grouped_chart(grouped, codes, layout, "code")
+    allowed = {code.id for code in codes if code.category in categories}
+    projected = {**layout, "code": [[identifier for identifier in members if identifier in allowed]
+                                  for members in layout["code"]]}
+    projected["code"] = [members for members in projected["code"] if members]
+    scoped = replace(grouped, issues=grouped.issues[grouped.issues["코드 ID"].isin(allowed)])
+    frame = grouped_chart(scoped, codes, projected, "code")
+    complete = {group_id("code", members) for members in layout["code"]}
+    frame["can_merge"] = frame["id"].isin(complete)
+    return frame
+
+
 def grouped_dashboard(grouped, codes, layout):
     """상세 집계와 CSV에도 같은 묶음을 적용하되 현재 범위의 분모를 쓴다."""
     categories = grouped_chart(grouped, codes, layout, "category")
@@ -124,9 +140,13 @@ def chart_action(store, run, layout, kind, frame, signature, action):
         target = by_id.get(action.get("target_id"))
         if not target:
             raise ValueError("같은 차트의 다른 분류에 놓아주세요.")
+        if not source.get("can_merge", True) or not target.get("can_merge", True):
+            raise ValueError("다른 대분류가 포함된 묶음은 대분류 조건을 해제한 뒤 합쳐주세요.")
         following = change_layout(layout, kind, source["id"], target["id"])
         members = [members for members in following[kind] if set(source["members"]).issubset(members)][0]
         return following, members, False
     if action.get("kind") == "open":
         return layout, source["members"], True
+    if action.get("kind") == "filter" and kind == "category":
+        return layout, source["members"], False
     raise ValueError("지원하지 않는 조작입니다.")

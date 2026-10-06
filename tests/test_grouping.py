@@ -166,17 +166,64 @@ def test_ui_save_load_and_new_session(completed, monkeypatch):
     chart_event(app, "code", "merge", ["speed"], ["wrong"])
     assert not app.session_state[prefix + "_show_originals"]
     assert app.button(key=prefix + "_save").label == "저장"
-    app.selectbox(key=prefix + "_group_sentiment").set_value("부정").run()
-    app.text_input(key=prefix + "_name").set_value("배송 문제").run()
+    assert not any(select.key == prefix + "_group_sentiment" for select in app.selectbox)
+    app.text_input(key=prefix + "_name").set_value("배송 문제")
     app.button(key=prefix + "_save").click().run()
     assert len(store.list_groups(run_id)) == 1 and not app.exception
+    assert store.list_groups(run_id)[0]["sentiment"] == "전체"
     assert not app.session_state[prefix + "_show_originals"]
     fresh, prefix = open_results(completed, monkeypatch)
     fresh.button(key=prefix + "_load").click().run()
     assert fresh.session_state[prefix + "_codes"] == ["speed", "wrong"]
-    assert fresh.session_state[prefix + "_filters"] == {"감성": {"values": ["부정"]}}
-    assert len(response_table(fresh)) == 3
+    assert fresh.session_state[prefix + "_filters"] == {}
+    assert len(response_table(fresh)) == 4
     assert not fresh.exception and not fresh.error
+
+
+@pytest.mark.parametrize("filter_source", ["전체 감성", "대분류 감성"])
+def test_save_classification_by_name_does_not_capture_sentiment_filter(completed, monkeypatch, filter_source):
+    from result_chart_helpers import sentiment_event
+    from test_category_context import context_event
+
+    store, run_id, _ = completed
+    raw = deepcopy(store.results(run_id))
+    app, prefix = open_results(completed, monkeypatch)
+    if filter_source == "전체 감성":
+        sentiment_event(app, "부정")
+    chart_event(app, "category", "filter", ["배송"])
+    if filter_source == "대분류 감성":
+        context_event(app, "부정")
+    assert not app.button(key=prefix + "_save").disabled
+    app.text_input(key=prefix + "_name").set_value("배송 조합")
+    app.button(key=prefix + "_save").click().run()
+    saved = store.list_groups(run_id)[0]
+    assert saved["code_ids"] == ["speed", "wrong"] and saved["sentiment"] == "전체"
+    fresh, prefix = open_results(completed, monkeypatch)
+    fresh.button(key=prefix + "_load").click().run()
+    assert fresh.session_state[prefix + "_filters"] == {}
+    assert set(response_table(fresh)["VOC ID"]) == {"V0001", "V0002", "V0003", "V0004"}
+    assert store.results(run_id) == raw
+
+
+@pytest.mark.parametrize("name", ["", "   "])
+def test_ui_save_validates_name_on_submit_then_accepts_direct_retry(completed, monkeypatch, name):
+    store, run_id, _ = completed
+    app, prefix = open_results(completed, monkeypatch)
+    chart_event(app, "code", "merge", ["speed"], ["wrong"])
+    app.text_input(key=prefix + "_name").set_value(name)
+    app.button(key=prefix + "_save").click().run()
+    assert store.list_groups(run_id) == []
+    assert [error.value for error in app.error] == ["이름을 입력해주세요."]
+    assert not app.exception
+    app.text_input(key=prefix + "_name").set_value(" 배송 문제 ")
+    app.button(key=prefix + "_save").click().run()
+    saved = store.list_groups(run_id)
+    assert len(saved) == 1 and saved[0]["name"] == "배송 문제"
+    assert saved[0]["code_ids"] == ["speed", "wrong"]
+    assert not app.exception and not app.error
+    app.button(key=prefix + "_save").click().run()
+    assert store.list_groups(run_id) == saved
+    assert app.error and not app.exception
 
 
 def test_ui_keeps_selections_scoped_to_run_and_marks_partial_counts(completed, monkeypatch):

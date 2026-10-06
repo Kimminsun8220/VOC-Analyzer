@@ -379,3 +379,22 @@ class Store:
         for row in rows:
             row["code_ids"] = json.loads(row.pop("code_ids_json"))
         return rows
+
+    def rename_group(self, run_id, identifier, name):
+        name = name.strip()
+        if not name or len(name) > 80:
+            raise ValueError("이름을 1~80자로 입력해주세요.")
+        with self.connect() as db:
+            try:
+                changed = db.execute("UPDATE result_groups SET name=? WHERE id=? AND run_id=?",
+                                     (name, identifier, run_id)).rowcount
+            except sqlite3.IntegrityError:
+                raise ValueError("같은 이름의 분류가 있습니다. 다른 이름을 입력해주세요.") from None
+            if not changed:
+                raise ValueError("저장한 분류가 없습니다. 목록을 다시 확인해주세요.")
+
+    def delete_group(self, run_id, identifier):
+        with self.connect() as db:
+            if not db.execute("DELETE FROM result_groups WHERE id=? AND run_id=?",
+                              (identifier, run_id)).rowcount:
+                raise ValueError("저장한 분류가 없습니다. 목록을 다시 확인해주세요.")

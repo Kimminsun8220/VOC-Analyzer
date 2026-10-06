@@ -3,7 +3,6 @@
 from collections import Counter
 from hashlib import sha256
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 import sqlite3
 
 import pandas as pd
@@ -20,9 +19,9 @@ from src.grouping_ui import show_grouped_results
 from src.ingestion import excel_sheet_names, prepare_preview, read_csv, read_excel, read_pasted_text
 from src.results import STATUS_LABELS, result_tables
 from src.storage import Store
+from src.workspace_ui import apply_workspace_theme
 from src.workflow import execute_run, generate_codebook
 
-SAMPLE_PATH = Path(__file__).parent / "data" / "samples" / "voc_sample.csv"
 CODE_COLUMNS = {"id": "코드 ID", "category": "대분류", "name": "세부분류", "definition": "분류 기준"}
 
 
@@ -46,13 +45,15 @@ def unique_analysis_labels(labels):
 
 def input_screen(store):
     st.header("데이터 입력", anchor=False)
-    name = st.text_input("분석 이름", value="새 VOC 분석", max_chars=100)
-    mode = st.radio("입력 방법", ["연습용 샘플", "직접 붙여넣기", "파일 업로드"], horizontal=True, key="input_mode")
+    identity, source = st.columns([1, 2], vertical_alignment="bottom")
+    name = identity.text_input("분석 이름", value="새 VOC 분석", max_chars=100)
+    input_modes = ["직접 붙여넣기", "파일 업로드"]
+    if st.session_state.get("input_mode") not in (None, *input_modes):
+        st.session_state.pop("input_mode", None)
+        st.session_state.pop("preview", None)
+    mode = source.radio("입력 방법", input_modes, horizontal=True, key="input_mode")
     frame = None
-    if mode == "연습용 샘플":
-        st.caption("가상 VOC 20건")
-        frame = read_csv(SAMPLE_PATH.read_bytes())
-    elif mode == "직접 붙여넣기":
+    if mode == "직접 붙여넣기":
         text = st.text_area("고객 의견", height=180, key="voc_text", help="빈 줄을 제외한 한 줄이 VOC 한 건입니다. 본문 속 줄바꿈은 파일 입력을 이용해주세요.")
         frame = read_pasted_text(text)
     else:
@@ -70,28 +71,33 @@ def input_screen(store):
         st.warning("본문과 열 제목이 있는 파일을 선택해주세요.")
         return
     columns = list(frame.columns)
-    text_column = st.selectbox("VOC 본문이 들어 있는 열", columns, index=columns.index("VOC") if "VOC" in columns else 0)
-    context = st.text_area("분석 배경 (선택)", key="input_context", max_chars=10000,
-        help="현재 자료 전체에 공통으로 적용되는 상품 설명·설문 문항·약어를 적어주세요. 비워도 분석할 수 있습니다.",
-        placeholder="예: SA는 서비스 어드바이저를 뜻합니다.")
-    with st.expander("입력 데이터 미리보기", expanded=True):
-        st.dataframe(frame.head(20), hide_index=True, width="stretch")
+    column_choice, background = st.columns([1, 2], vertical_alignment="bottom")
+    text_column = column_choice.selectbox("VOC 본문이 들어 있는 열", columns, index=columns.index("VOC") if "VOC" in columns else 0)
+    with background.popover("분석 배경 (선택)"):
+        context = st.text_area("분석 배경 (선택)", key="input_context", max_chars=10000,
+            help="현재 자료 전체에 공통으로 적용되는 상품 설명·설문 문항·약어를 적어주세요. 비워도 분석할 수 있습니다.",
+            placeholder="예: SA는 서비스 어드바이저를 뜻합니다.")
+    st.subheader("입력 미리보기", anchor=False)
+    st.dataframe(frame.head(20), hide_index=True, width="stretch", height=320,
+        column_config={text_column: st.column_config.TextColumn(width="large")})
+    summary = st.empty()
     fingerprint = sha256((frame.to_json(force_ascii=False) + str(text_column) + context + name + mode).encode()).hexdigest()
-    if st.button("입력 데이터 확인", key="preview_button", type="primary", width="stretch"):
+    saved_preview = st.session_state.get("preview")
+    is_validated = bool(saved_preview and saved_preview[0] == fingerprint)
+    actions = st.container(horizontal=True)
+    if actions.button("입력 데이터 확인", key="preview_button", type="secondary" if is_validated else "primary"):
         preview = prepare_preview(frame, text_column)
         st.session_state.preview = (fingerprint, preview)
+        st.rerun()
     saved = st.session_state.get("preview")
     if not saved or saved[0] != fingerprint:
         return
     preview = saved[1]
-    a, b, c = st.columns(3)
-    a.metric("원본 응답", f"{preview.input_count}건")
-    b.metric("본문 있는 응답", f"{preview.input_count - preview.blank_count}건")
-    c.metric("빈 본문·무응답", f"{preview.blank_count}건")
+    counts = f"원본 응답 {preview.input_count}건 · 본문 있는 응답 {preview.input_count - preview.blank_count}건 · 빈 본문·무응답 {preview.blank_count}건"
     if preview.duplicate_count:
-        st.caption(f"중복 본문 {preview.duplicate_count}건 포함")
-    st.dataframe(preview.records, hide_index=True, width="stretch")
-    if st.button("입력 저장 → 분류 기준표로", key="save_input", type="primary", width="stretch"):
+        counts += f" · 중복 본문 {preview.duplicate_count}건 포함"
+    summary.caption(counts)
+    if actions.button("입력 저장 → 분류 기준표로", key="save_input", type="primary"):
         identifier = store.save_dataset(name, preview, frame, text_column, mode, context)
         st.session_state.pending_dataset = identifier
         st.session_state.page = "2. 분류 기준표"
@@ -99,9 +105,11 @@ def input_screen(store):
 
 
 def codebook_screen(store, dataset):
-    st.caption(f"원본 응답 {len(dataset['records'])}건")
     books = store.list_codebooks(dataset["id"])
-    selected = show_codebook_picker(store, dataset["id"], books)
+    versions, counts = st.columns([2, 1], vertical_alignment="bottom")
+    with versions:
+        selected = show_codebook_picker(store, dataset["id"], books)
+    counts.caption(f"원본 응답 {len(dataset['records'])}건")
     book = store.codebook(selected) if selected else None
     confirmed = book is not None and book["status"] == "confirmed"
     content = st.container() if confirmed else None
@@ -171,7 +179,7 @@ def results_screen(store, dataset):
         st.session_state[key] = pending
     if key not in st.session_state:
         st.session_state[key] = next((item["id"] for item in runs if item["status"] == "completed"), runs[0]["id"])
-    _, history = st.columns([1, 2], vertical_alignment="center")
+    summary, history = st.columns([3, 2], vertical_alignment="center")
     selected = history.selectbox("저장된 분석 실행", list(labels), format_func=labels.get, key=key,
         label_visibility="collapsed")
     run = store.run(selected)
@@ -179,7 +187,7 @@ def results_screen(store, dataset):
     originals, issues = result_tables(store, selected)
     empty_count = originals['응답 상태'].eq('없음·무응답·모름').sum()
     book_name = f"{book['name']} · " if book["name"] else ""
-    st.caption(f"분류 기준표 {book_name}v{book['version']} · 전체 응답 {len(originals)}건 · 내용 없는 응답 {empty_count}건")
+    summary.caption(f"분류 기준표 {book_name}v{book['version']} · 전체 응답 {len(originals)}건 · 내용 없는 응답 {empty_count}건")
     if run["status"] != "completed":
         st.warning(f"{STATUS_LABELS[run['status']]} · {run['error'] or '저장된 지점부터 이어서 처리할 수 있습니다.'}")
         if st.button("보완 이어서 실행 (최대 2회 추가)" if run["status"] == "needs_review" else "실패·미처리 이어서 실행", key="resume_run"):
@@ -195,16 +203,25 @@ def results_screen(store, dataset):
 def main():
     st.set_option("client.toolbarMode", "minimal")
     st.set_page_config(page_title="AI VOC Analyzer", layout="wide")
+    apply_workspace_theme()
     store = Store()
     clear_deleted_dataset_state()
     if "page" in st.session_state:
         st.session_state.nav = st.session_state.pop("page")
     if "pending_dataset" in st.session_state:
         st.session_state.dataset_id = st.session_state.pop("pending_dataset")
+    datasets = store.list_datasets()
+    active_id = st.session_state.get("dataset_id")
+    if datasets and active_id not in {item["id"] for item in datasets}:
+        active_id = datasets[0]["id"]
+    books = store.list_codebooks(active_id) if active_id else []
+    runs = store.list_runs(active_id) if active_id else []
+    stages = ["자료 저장됨" if datasets else "자료 준비",
+              "확정본 있음" if any(book["status"] == "confirmed" for book in books) else "초안 검토" if books else "기준표 준비",
+              STATUS_LABELS[runs[0]["status"]] if runs else "분류 대기"]
     with st.sidebar:
         st.title("AI VOC Analyzer")
-        page = st.radio("분석 단계", ["1. 입력", "2. 분류 기준표", "3. 분류 결과"], key="nav")
-    datasets = store.list_datasets()
+        page = st.radio("분석 단계", ["1. 입력", "2. 분류 기준표", "3. 분류 결과"], captions=stages, key="nav")
     if not datasets:
         st.session_state.pop("dataset_id", None)
     try:
@@ -214,11 +231,15 @@ def main():
                 st.toast(notice)
             input_screen(store)
         else:
-            st.header("분류 기준표" if page == "2. 분류 기준표" else "분류 결과")
+            with st.container(key="workspace_header"):
+                title, picker = st.columns([1, 2], vertical_alignment="center")
+                title.header("분류 기준표" if page == "2. 분류 기준표" else "분류 결과", anchor=False)
+                if datasets:
+                    with picker:
+                        show_dataset_picker(store, datasets)
             if not datasets:
                 st.info("먼저 입력 자료를 저장해주세요.")
             else:
-                show_dataset_picker(store, datasets)
                 dataset = store.dataset(st.session_state.dataset_id)
                 if page == "2. 분류 기준표":
                     codebook_screen(store, dataset)

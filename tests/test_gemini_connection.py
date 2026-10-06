@@ -100,6 +100,7 @@ def test_missing_key_does_not_make_network_request(monkeypatch):
     monkeypatch.setattr(ai.genai, "Client", lambda *a, **k: pytest.fail("키가 없으면 API를 호출하면 안 된다"))
     app = AppTest.from_file(APP_PATH).run()
     assert not app.error
+    app.text_area(key="voc_text").set_value("배송이 빠름").run()
     app.button(key="preview_button").click().run()
     app.button(key="save_input").click().run()
     app.button(key="generate_codebook").click().run()

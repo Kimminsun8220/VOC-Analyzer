@@ -13,7 +13,7 @@ from src.chart_data import COUNT, PERCENT
 from src.charts_ui import PRIMARY_FONT, SECONDARY_FONT, result_bars_renderer
 
 OTHER_SENTIMENT = "무응답/중립/미검토"
-SENTIMENT_COLORS = {"긍정": "#2563EB", "부정": "#C2410C", "혼합": "#7C3AED",
+SENTIMENT_COLORS = {"긍정": "#238577", "부정": "#B45339", "혼합": "#7964A4",
                     OTHER_SENTIMENT: "#CBD5E1"}
 CHART_CONFIG = {"displayModeBar": False, "scrollZoom": False}
 
@@ -44,6 +44,66 @@ def response_sentiments(view, opinions):
     denominator = len(labels)
     return pd.DataFrame([{"감성": label, COUNT: count, PERCENT: count / denominator * 100 if denominator else 0.0}
                          for label, count in counts.items()])
+
+
+def category_sentiment_labels(view, opinions, categories):
+    """대분류에 속한 의견으로 고유 응답의 감성을 배정한다."""
+    scoped = opinions[opinions["대분류"].isin(categories)]
+    return response_sentiment_labels(view[view["VOC ID"].isin(scoped["VOC ID"])], scoped)
+
+
+def show_category_context(store, run, view, opinions, categories, sentiment, prefix):
+    """별도 차트 섹션 없이 선택한 대분류의 맥락과 추가 필터를 제공한다."""
+    labels = category_sentiment_labels(view, opinions, categories)
+    selected = st.session_state.get(prefix + "_category_sentiment")
+    count = int(labels.eq(selected).sum()) if selected else len(labels)
+    title = " / ".join(categories)
+    rows = []
+    condition = None
+    if sentiment != "전체" or selected:
+        label = selected or sentiment
+        condition = f"{title} · {'기타' if label == OTHER_SENTIMENT else label} 필터 적용 · {count}건"
+    else:
+        counts = labels.value_counts()
+        for label in SENTIMENT_COLORS:
+            value = int(counts.get(label, 0))
+            if label == "혼합" and not value:
+                continue
+            rows.append({"id": label, "label": "기타" if label == OTHER_SENTIMENT else label,
+                         "count": value, "percent": value / count * 100 if count else 0.0,
+                         "color": SENTIMENT_COLORS[label]})
+    signature = sha256(json.dumps([run["id"], run["result_revision"], categories, rows, condition,
+        selected, st.session_state.get(prefix + "_chart_epoch", 0)], ensure_ascii=False).encode()).hexdigest()[:20]
+    result = result_bars_renderer()(key=prefix + "_category_context",
+        data={"variant": "category_context", "rows": rows, "title": title, "signature": signature,
+              "denominator": count, "condition": condition, "selected": selected},
+        on_action_change=lambda: None)
+    action = result.action
+    if not action or action.get("nonce") == st.session_state.get(prefix + "_last_context_action"):
+        return
+    st.session_state[prefix + "_last_context_action"] = action.get("nonce")
+    if (action.get("signature") != signature or
+            store.run(run["id"])["result_revision"] != run["result_revision"]):
+        st.info("결과가 변경되었습니다. 새 화면에서 다시 선택해주세요.")
+        return
+    if action.get("kind") == "clear" and selected:
+        following = None
+    elif (action.get("kind") == "filter" and not condition and
+          action.get("source_id") in {row["id"] for row in rows if row["count"]}):
+        following = action["source_id"]
+    else:
+        return
+    st.session_state[prefix + "_category_sentiment"] = following
+    st.session_state[prefix + "_mode"] = "전체 보기"
+    st.session_state[prefix + "_categories"] = []
+    st.session_state[prefix + "_codes"] = []
+    st.session_state[prefix + "_filters"] = {}
+    st.session_state[prefix + "_show_originals"] = False
+    st.session_state.pop(prefix + "_selected_voc", None)
+    st.session_state.pop(prefix + "_editing_voc", None)
+    for suffix in ("_chart_epoch", "_table_epoch"):
+        st.session_state[prefix + suffix] = st.session_state.get(prefix + suffix, 0) + 1
+    st.rerun()
 
 
 def show_sentiment_overview(store, run, view, opinions, prefix):

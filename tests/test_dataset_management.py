@@ -197,6 +197,7 @@ def test_ui_delete_last_dataset_returns_to_input_and_can_save_again(monkeypatch)
     assert not store.list_datasets() and not app.exception and not app.error
     assert app.radio(key="nav").value == "1. 입력"
     assert not any((button.key or "").startswith("dataset_") for button in app.button)
+    app.text_area(key="voc_text").set_value("배송이 빠름").run()
     app.button(key="preview_button").click().run()
     app.button(key="save_input").click().run()
     assert app.radio(key="nav").value == "2. 분류 기준표"

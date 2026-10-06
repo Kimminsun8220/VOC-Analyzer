@@ -3,8 +3,10 @@ export default function(component) {
   const root = parentElement.querySelector('.result-bars');
   if (root.dataset.signature === data.signature) return;
   root.dataset.signature = data.signature;
+  root.dataset.level = data.level || data.variant || '';
   root.removeAttribute('aria-busy');
   root.classList.toggle('result-bars-sentiment', data.variant === 'sentiment');
+  root.classList.toggle('result-category-context', data.variant === 'category_context');
   root.replaceChildren();
   let pending = false, menu = null, drag = null, menuOwner = null;
   const make = (tag, className, text) => {
@@ -24,7 +26,7 @@ export default function(component) {
     pending = true;
     closeMenu();
     root.setAttribute('aria-busy', 'true');
-    status.textContent = kind === 'filter' ? '분류 그래프 갱신 중…' : kind === 'merge' ? '합치는 중…' : '원문 여는 중…';
+    status.textContent = ['filter', 'clear'].includes(kind) ? '분류 그래프 갱신 중…' : kind === 'merge' ? '합치는 중…' : '원문 여는 중…';
     setTriggerValue('action', {kind, source_id, target_id, signature: data.signature, nonce: crypto.randomUUID()});
   };
   const button = (label, className, action) => {
@@ -33,6 +35,34 @@ export default function(component) {
     return result;
   };
   const status = make('p', 'result-bars-status'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+  if (data.variant === 'category_context') {
+    root.setAttribute('role', 'group');
+    root.setAttribute('aria-label', `${data.title} 감성 요약`);
+    if (data.condition) {
+      const condition = make('div', 'result-context-condition', data.condition);
+      if (data.selected) {
+        const clear = button('대분류 감성 필터 해제', 'result-context-clear', () => send('clear', data.selected));
+        clear.textContent = '해제'; condition.append(clear);
+      }
+      root.append(condition, status);
+      return;
+    }
+    const summary = make('div', 'result-context-summary');
+    const count = make('span', 'result-context-count', `응답 ${data.denominator}건`);
+    count.title = '선택한 대분류의 고유 응답 수'; summary.append(count);
+    for (const row of data.rows) {
+      const item = button(`${data.title} 내 ${row.label} ${row.count}건 · ${row.percent.toFixed(1)}%로 좁혀보기`,
+        'result-context-sentiment', () => send('filter', row.id));
+      item.disabled = !row.count; item.setAttribute('aria-pressed', 'false');
+      item.title = `${row.label} ${row.count}건 · 해당 대분류 ${data.denominator}건의 ${row.percent.toFixed(1)}%` +
+        (row.label === '기타' ? '\n무응답·중립·미검토' : '');
+      const swatch = make('span', 'result-context-swatch'); swatch.style.backgroundColor = row.color;
+      swatch.setAttribute('aria-hidden', 'true');
+      item.append(swatch, make('span', '', `${row.label} ${row.percent.toFixed(1)}%`)); summary.append(item);
+    }
+    root.append(summary, status);
+    return;
+  }
   if (data.variant === 'sentiment') {
     const track = make('div', 'result-sentiment-track');
     track.setAttribute('role', 'group'); track.setAttribute('aria-label', '감성 비중');
@@ -51,7 +81,7 @@ export default function(component) {
       item.setAttribute('aria-pressed', String(selected)); item.classList.toggle('is-muted', muted);
       const swatch = make('span', 'result-sentiment-swatch'); swatch.style.backgroundColor = row.color;
       swatch.setAttribute('aria-hidden', 'true');
-      item.append(swatch, make('span', '', `${row.label} ${row.percent.toFixed(1)}%`));
+      item.append(swatch, make('span', '', `${selected ? '✓ ' : ''}${row.label} ${row.percent.toFixed(1)}%`));
       legend.append(item);
     }
     root.append(track, legend, status);
@@ -69,7 +99,9 @@ export default function(component) {
     closeMenu(); menuOwner = owner; owner.setAttribute('aria-expanded', 'true');
     menu = make('div', 'result-bars-menu'); menu.setAttribute('role', 'menu');
     menu.setAttribute('aria-label', '합칠 분류 선택');
-    for (const target of data.rows.filter(item => item.id !== row.id)) {
+    const view = button(`${row.label} 원문 보기`, '', () => send('open', row.id));
+    view.setAttribute('role', 'menuitem'); view.textContent = '원문 보기'; menu.append(view);
+    for (const target of data.rows.filter(item => item.id !== row.id && row.can_merge !== false && item.can_merge !== false)) {
       const item = button(`${target.label}에 합치기`, '', () => send('merge', row.id, target.id));
       item.setAttribute('role', 'menuitem'); item.textContent = `${target.label}에 합치기`;
       menu.append(item);
@@ -84,10 +116,12 @@ export default function(component) {
   for (const row of data.rows) {
     const item = make('div', 'result-bars-row');
     item.setAttribute('role', 'listitem'); item.dataset.rowId = row.id;
+    item.classList.toggle('is-selected', Boolean(row.selected));
+    item.classList.toggle('is-muted', data.level === 'category' && data.filtered && !row.selected);
     const grip = button(`분류 끌기: ${row.label}`, 'result-bars-grip', () => {});
     grip.title = '다른 분류에 끌어 놓아 합치기';
     grip.append(icon('M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01'));
-    grip.disabled = data.rows.length < 2;
+    grip.disabled = data.rows.length < 2 || row.can_merge === false;
     grip.onpointerdown = event => {
       if (event.button !== 0 || pending || grip.disabled) return;
       closeMenu();
@@ -100,7 +134,7 @@ export default function(component) {
       drag.active = true; item.classList.add('result-bars-dragging');
       root.querySelectorAll('.result-bars-drop').forEach(element => element.classList.remove('result-bars-drop'));
       const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('.result-bars-row');
-      drag.target = target && root.contains(target) && target.dataset.rowId !== drag.id ? target.dataset.rowId : null;
+      drag.target = target && root.contains(target) && target.dataset.rowId !== drag.id && data.rows.find(row => row.id === target.dataset.rowId)?.can_merge !== false ? target.dataset.rowId : null;
       if (drag.target) target.classList.add('result-bars-drop');
       status.textContent = drag.target ? '놓으면 두 분류를 합쳐 봅니다.' : '합칠 분류 위에 놓으세요.';
       if (event.clientY > window.innerHeight - 40) window.scrollBy(0, 12);
@@ -115,7 +149,9 @@ export default function(component) {
     };
     grip.onpointerup = () => endDrag(false);
     grip.onpointercancel = () => endDrag(true);
-    const control = button(`${row.label} · ${row.count}건 · ${row.percent.toFixed(1)}% 원문 보기`, 'result-bars-open', () => send('open', row.id));
+    const drill = data.level === 'category';
+    const control = button(`${row.label} · ${row.count}건 · ${row.percent.toFixed(1)}% ${drill ? '세부분류 보기' : '원문 보기'}`, 'result-bars-open', () => send(drill ? 'filter' : 'open', row.id));
+    if (drill) control.setAttribute('aria-pressed', String(Boolean(row.selected)));
     control.title = `${row.label}\n응답 ${row.count}건\n${data.scope || '전체'} 응답 대비 ${row.percent.toFixed(1)}% (분모 ${data.denominator}건)`;
     const label = make('span', 'result-bars-label', row.label);
     const track = make('span', 'result-bars-track'); track.setAttribute('aria-hidden', 'true');
@@ -125,7 +161,7 @@ export default function(component) {
     const more = button(`합칠 분류 선택: ${row.label}`, 'result-bars-more', () => openMenu(row, more, item));
     more.append(icon('M12 5h.01M12 12h.01M12 19h.01'));
     more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');
-    more.disabled = data.rows.length < 2;
+    more.disabled = false;
     item.append(grip, control, more); list.append(item);
   }
   root.append(list);

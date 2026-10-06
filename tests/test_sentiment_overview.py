@@ -109,7 +109,7 @@ def test_category_popup_filters_and_whole_view_keep_visible_dashboard_scope(comp
     assert response_table(app).empty and sentiment_data(app)["selected"] == "부정"
     app.button(key=prefix + "_open_originals").click().run()
     assert len(response_table(app)) == 2
-    assert "부정 응답" in [header.value for header in app.subheader]
+    assert "배송 · 부정" in [header.value for header in app.subheader]
     sentiment_event(app, "부정")
     assert chart_data(app)["denominator"] == 5 and response_table(app).empty
 

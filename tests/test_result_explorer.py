@@ -15,7 +15,7 @@ def test_main_page_shows_both_charts_and_opens_all_originals_directly(completed)
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     app.radio(key="nav").set_value("3. 분류 결과").run()
     assert len(charts(app)) == 2
-    assert [header.value for header in app.subheader] == ["감성 비중", "대분류", "세부분류"]
+    assert [header.value for header in app.subheader] == ["감성으로 좁혀보기", "대분류", "세부분류"]
     assert len(app.get("plotly_chart")) == 0
     assert not any(expander.label == "고객 원문" for expander in app.expander)
     assert response_table(app).empty

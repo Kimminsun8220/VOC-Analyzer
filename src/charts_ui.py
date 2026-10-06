@@ -1,6 +1,7 @@
 """공통 묶음 상태의 차트와 결과 해석에 필요한 집계 기준을 제공한다."""
 
 from html import escape
+from dataclasses import replace
 from pathlib import Path
 import textwrap
 
@@ -8,7 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.chart_data import COUNT, PERCENT, DENOMINATOR
-from src.result_groups import initial_layout, grouped_chart, chart_signature, chart_action, change_layout
+from src.result_groups import initial_layout, grouped_chart, drill_code_chart, chart_signature, chart_action
 
 SENTIMENT_COLORS = {"긍정": "#2563EB", "부정": "#C2410C", "중립": "#64748B", "판단 불가": "#7C3AED"}
 PRIMARY_FONT = {"family": "Pretendard Variable, Pretendard, sans-serif", "size": 14, "color": "#0F172A", "weight": 500}
@@ -54,8 +55,8 @@ def result_bars_renderer():
         js=(assets / "result_bars.js").read_text(encoding="utf-8"), isolate_styles=False)
 
 
-def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
-    """두 차트를 드래그로 묶고, 클릭한 범위의 원문 팝업을 연다."""
+def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix, originals):
+    """대분류에서 세부분류로 탐색하고 세부분류 원문을 연다."""
     if run["status"] != "completed":
         st.info("분류와 검토가 완료되면 전체 분포를 보여줍니다.")
         return
@@ -64,7 +65,8 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
                 "분류할 의견이 없는 결과입니다. 고객 원문에서 응답 내용을 확인할 수 있습니다.")
         return
     caption, settings = st.columns([3, 2], vertical_alignment="center")
-    caption.caption(f"{sentiment} 응답 {grouped.total_count}건 기준 · 클릭하면 원문 · 끌어 놓으면 합쳐 보기")
+    caption.caption(f"{sentiment} 응답 {grouped.total_count}건 기준",
+        help="분류별 고유 응답 수를 현재 감성의 전체 응답 수로 나눕니다. 대분류를 선택해도 분모는 유지하며, 한 응답에 여러 분류가 있으면 분류 비율의 합은 100%를 넘을 수 있습니다.")
     with settings.container(horizontal=True, horizontal_alignment="right"):
         with st.popover("표시할 분류 수", width="content"):
             top_n = st.selectbox("표시할 분류 수", ["전체", 5, 10, 20, 50], key=prefix + "_top_n",
@@ -79,20 +81,35 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
     if notice:
         st.info(notice)
     renderer = result_bars_renderer()
+    drill = st.session_state.get(prefix + "_drill_categories", [])
+    category_sentiment = st.session_state.get(prefix + "_category_sentiment") if drill else None
+    code_group = grouped
+    if drill and category_sentiment:
+        from src.category_summary import category_sentiment_labels
+        from src.grouping import group_results
+        labels = category_sentiment_labels(originals, grouped.issues, drill)
+        matching = labels.index[labels.eq(category_sentiment)]
+        code_group = replace(group_results(originals[originals["VOC ID"].isin(matching)],
+            grouped.issues[grouped.issues["VOC ID"].isin(matching)], book["codes"]),
+            total_count=grouped.total_count)
 
     def show_chart(kind, title):
-        frame = grouped_chart(grouped, book["codes"], layout, kind)
+        frame = (drill_code_chart(code_group, book["codes"], layout, drill) if kind == "code" else
+                 grouped_chart(grouped, book["codes"], layout, kind))
         if top_n != "전체":
             frame = frame.nlargest(top_n, COUNT, keep="all")
         extra = len(frame) - top_n if top_n != "전체" else 0
         if extra > 0:
             st.caption(f"동률로 {extra}개 더 표시했습니다.")
         rows = [{"id": row["id"], "label": row["분류"], "count": row[COUNT], "percent": row[PERCENT],
-                 "value": row[measure], "members": row["members"], "code_ids": row["code_ids"]}
+                 "value": row[measure], "members": row["members"], "code_ids": row["code_ids"],
+                 "can_merge": bool(row.get("can_merge", True)),
+                 "selected": kind == "category" and set(row["members"]) == set(drill)}
                 for row in frame.to_dict("records")]
         result = renderer(key=f"{prefix}_bars_{kind}",
             data={"rows": rows, "title": title, "signature": signature, "denominator": grouped.total_count,
-                  "maximum": float(frame[measure].max()) if len(frame) else 0, "scope": sentiment},
+                  "maximum": grouped.total_count, "scope": sentiment,
+                  "level": kind, "filtered": bool(drill)},
             on_action_change=lambda: None)
         action = result.action
         if action and action.get("nonce") != st.session_state.get(prefix + "_last_chart_action"):
@@ -100,6 +117,12 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
             try:
                 following, members, open_popup = chart_action(store, run, layout, kind, frame, signature, action)
                 st.session_state[layout_key] = following
+                if kind == "category" and (action.get("kind") == "filter" or set(drill) != set(members)):
+                    st.session_state[prefix + "_category_sentiment"] = None
+                if kind == "category" and action.get("kind") == "filter":
+                    st.session_state[prefix + "_drill_categories"] = [] if set(drill) == set(members) else members
+                elif kind == "category":
+                    st.session_state[prefix + "_drill_categories"] = members
                 st.session_state[prefix + "_mode"] = "대분류로 묶기" if kind == "category" else "세부분류 직접 선택"
                 st.session_state[prefix + ("_categories" if kind == "category" else "_codes")] = members
                 st.session_state[prefix + "_filters"] = {}
@@ -112,22 +135,16 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix):
             st.session_state[prefix + "_chart_epoch"] = st.session_state.get(prefix + "_chart_epoch", 0) + 1
             st.rerun()
 
-    category, code = st.columns(2, gap="large")
+    with st.container(key="result_analysis"):
+        category, code = st.columns([2, 3], gap="large")
     with category:
         st.subheader("대분류", anchor=False)
         show_chart("category", "대분류")
     with code:
-        st.subheader("세부분류", anchor=False)
+        st.subheader("세부분류" + (" · " + "/".join(drill) if drill else ""), anchor=False)
+        if drill:
+            from src.category_summary import show_category_context
+            show_category_context(store, run, originals, grouped.issues, drill, sentiment, prefix)
+        if drill and category_sentiment and code_group.issues.empty:
+            st.caption("현재 조건에 해당하는 세부분류가 없습니다.")
         show_chart("code", "세부분류")
-    if layout["history"]:
-        if st.button("합치기 되돌리기", key=prefix + "_undo_group"):
-            st.session_state[layout_key] = change_layout(layout, "undo")
-            st.session_state[prefix + "_mode"] = "전체 보기"
-            st.session_state[prefix + "_categories"] = []
-            st.session_state[prefix + "_codes"] = []
-            st.session_state[prefix + "_filters"] = {}
-            st.session_state[prefix + "_table_epoch"] = st.session_state.get(prefix + "_table_epoch", 0) + 1
-            st.session_state[prefix + "_show_originals"] = False
-            st.session_state.pop(prefix + "_selected_voc", None)
-            st.session_state.pop(prefix + "_editing_voc", None)
-            st.rerun()

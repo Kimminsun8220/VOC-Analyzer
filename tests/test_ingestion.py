@@ -49,17 +49,34 @@ def test_empty_and_oversized_inputs_report_errors():
         read_csv(b"a" * (10 * 1024 * 1024 + 1))
 
 
-def test_sample_screen_then_pasted_input_does_not_show_stale_results():
+def test_pasted_input_changes_do_not_show_stale_results():
     app = AppTest.from_file(APP_PATH).run()
     assert not app.exception
+    assert app.radio(key="input_mode").options == ["직접 붙여넣기", "파일 업로드"]
+    assert app.text_area(key="voc_text").value == ""
+    app.text_area(key="voc_text").set_value("배송이 늦어요\n\n친절해요").run()
     app.button(key="preview_button").click().run()
-    assert [metric.value for metric in app.metric] == ["20건", "20건", "0건"]
-    app.radio[0].set_value("직접 붙여넣기").run()
+    assert any("원본 응답 2건 · 본문 있는 응답 2건 · 빈 본문·무응답 0건" in caption.value for caption in app.caption)
+    assert len(app.dataframe) == 1 and not app.metric
+    app.text_area(key="voc_text").set_value("배송이 늦어요").run()
     assert not app.metric
-    app.text_area[0].set_value("배송이 늦어요\n\n친절해요").run()
+    assert not any("원본 응답 2건" in caption.value for caption in app.caption)
+    assert not any(button.key == "save_input" for button in app.button)
     app.button(key="preview_button").click().run()
-    assert [metric.value for metric in app.metric] == ["2건", "2건", "0건"]
+    assert any("원본 응답 1건 · 본문 있는 응답 1건" in caption.value for caption in app.caption)
+    assert len(app.dataframe) == 1
     assert not app.exception
+
+
+def test_old_sample_selection_and_preview_are_cleared():
+    app = AppTest.from_file(APP_PATH)
+    app.session_state["input_mode"] = "연습용 샘플"
+    app.session_state["preview"] = ("old-sample", prepare_preview(pd.DataFrame({"VOC": ["연습용 의견"]}), "VOC"))
+    app.run()
+    assert not app.exception
+    assert app.radio(key="input_mode").value == "직접 붙여넣기"
+    assert "preview" not in app.session_state
+    assert not any(button.key == "save_input" for button in app.button)
 
 
 def test_empty_paste_shows_friendly_error():

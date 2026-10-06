@@ -126,7 +126,8 @@ def test_ui_category_only_visuals_refresh_with_filters_without_changing_ai(compl
     table_event(app, "filter", column="감성", values=[])
     assert response_table(app).empty and len(app.get("plotly_chart")) == 0
     app.button(key=next(button.key for button in app.button if button.label == "전체 보기")).click().run()
-    assert len(app.get("plotly_chart")) == 0 and not app.dataframe and len(response_table(app)) == 5
+    # 팝업 안의 해제는 상위 대분류 선택을 유지한다.
+    assert len(app.get("plotly_chart")) == 0 and not app.dataframe and len(response_table(app)) == 4
     assert store.results(run_id) == raw
 
 

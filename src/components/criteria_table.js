@@ -110,10 +110,12 @@ export default function(component) {
   const filterButtons = {};
   const refreshFilters = () => {
     let shown = 0;
+    let previousCategory = null;
     for (const tr of body.querySelectorAll('tr[data-row-id]')) {
       const row = {id: tr.dataset.rowId, category: tr.querySelector('[data-field="category"]').value, name: tr.querySelector('[data-field="name"]').value};
       tr.hidden = !matchesFilters(row, root.filters) && !root.keptRows.has(row.id);
-      if (!tr.hidden) { shown += 1; tr.querySelectorAll('textarea').forEach(fitCell); }
+      tr.classList.toggle('criteria-category-start', !tr.hidden && previousCategory !== null && previousCategory !== row.category);
+      if (!tr.hidden) { previousCategory = row.category; shown += 1; tr.querySelectorAll('textarea').forEach(fitCell); }
     }
     emptyRow.hidden = shown > 0;
     emptyText.textContent = activeFilters() ? '조건에 맞는 분류가 없습니다.' : '분류를 추가해주세요.';

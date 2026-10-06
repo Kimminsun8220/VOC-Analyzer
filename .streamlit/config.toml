@@ -1,9 +1,9 @@
 [theme]
 base = "light"
-primaryColor = "#1E40AF"
+primaryColor = "#245B78"
 backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F1F5F9"
-textColor = "#0F172A"
+secondaryBackgroundColor = "#F6F7F9"
+textColor = "#202B38"
 font = "Pretendard Variable, sans-serif"
 
 [[theme.fontFaces]]

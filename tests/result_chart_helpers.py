@@ -8,7 +8,7 @@ from streamlit.components.v2.bidi_component.main import _make_trigger_id
 
 def charts(app):
     return [chart for chart in app.get("bidi_component") if chart.proto.component_name == "result_bars"
-            and json.loads(chart.proto.json).get("variant") != "sentiment"]
+            and not json.loads(chart.proto.json).get("variant")]
 
 
 def sentiment_chart(app):

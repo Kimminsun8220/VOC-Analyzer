@@ -13,7 +13,10 @@ from src.models import Code, CodingResult, Issue
 from src.results import csv_download, result_tables
 from src.storage import Store
 from test_corrections import prepared, rows_for, save
-from test_grouping import completed, metric_value, open_results
+from test_grouping import completed, response_table, open_results
+from result_chart_helpers import charts, chart_event
+from test_category_summary import pie_spec
+from src.category_summary import OTHER_SENTIMENT
 
 
 def dashboard(completed, selected=None, sentiment="전체"):
@@ -96,23 +99,23 @@ def test_export_and_figure_use_same_counts_and_record_scope(completed):
 
 
 def chart_specs(app):
-    return [json.loads(chart.proto.spec) for chart in app.get("plotly_chart")]
+    return [json.loads(chart.proto.json) for chart in charts(app)]
 
 
 def test_ui_group_saved_scope_and_top_n_share_chart_data(completed, monkeypatch):
     store, run_id, _ = completed
     store.save_group(run_id, "배송 부정", ["speed", "wrong"], "부정")
     app, prefix = open_results(completed, monkeypatch)
-    assert len(chart_specs(app)) == 3
-    assert chart_specs(app)[2]["data"][0]["x"] == [3, 2]
+    assert len(chart_specs(app)) == 2
+    assert [row["value"] for row in chart_specs(app)[1]["rows"]] == [3, 2]
     app.button(key=prefix + "_load").click().run()
-    assert metric_value(app, "묶음의 고유 VOC") == "3건"
-    leaf = chart_specs(app)[2]["data"][0]
-    assert leaf["x"] == [3] and leaf["customdata"][0][0] == "wrong"
-    app.radio(key=prefix + "_measure").set_value("범위 내 비율").run()
-    assert chart_specs(app)[2]["data"][0]["x"] == [100]
+    assert len(response_table(app)) == 3
+    leaf = chart_specs(app)[1]
+    assert [row["value"] for row in leaf["rows"]] == [4]
+    assert leaf["rows"][0]["members"] == ["speed", "wrong"] and leaf["denominator"] == 5
+    assert leaf["rows"][0]["percent"] == 80
     app.selectbox(key=prefix + "_top_n").set_value(5).run()
-    assert metric_value(app, "묶음의 고유 VOC") == "3건"
+    assert len(response_table(app)) == 3
     assert not app.exception and not app.error
 
 
@@ -120,14 +123,14 @@ def test_ui_no_charts_for_unfinished_or_empty_results(completed, monkeypatch):
     store, run_id, codes = completed
     store.update_status(run_id, "failed", "검증용 미완료")
     app, _ = open_results(completed, monkeypatch)
-    assert not app.get("plotly_chart")
-    assert any("차트는 분류와 승계 검토" in info.value for info in app.info)
+    assert not charts(app)
+    assert any("분류와 검토가 완료" in info.value for info in app.info)
     for row in store.results(run_id):
         store.save_result(run_id, 0, row["voc_id"], CodingResult(voc_id=row["voc_id"], response_type="no_content", no_content_reason="테스트"))
     store.update_status(run_id, "completed")
     app.run()
-    assert not app.get("plotly_chart") and not app.exception and not app.error
-    assert metric_value(app, "묶음의 고유 VOC") == "0건"
+    assert not charts(app) and not app.exception and not app.error
+    assert len(response_table(app)) == 5
 
 
 @pytest.mark.parametrize("counts, expected_rows", [
@@ -137,7 +140,7 @@ def test_ui_no_charts_for_unfinished_or_empty_results(completed, monkeypatch):
     ([2, 2, 2, 2, 2, 2, 2], 7),
     ([2, 1], 2),
 ])
-def test_ui_top_n_keeps_boundary_ties_in_both_measures(counts, expected_rows, monkeypatch):
+def test_ui_defaults_to_all_and_top_n_keeps_boundary_ties(counts, expected_rows, monkeypatch):
     store = Store()
     frame = pd.DataFrame({"VOC": [f"의견 {index}" for index in range(max(counts))]})
     dataset_id = store.save_dataset("동률 검증", prepare_preview(frame, "VOC"), frame, "VOC", "검증", "")
@@ -153,44 +156,47 @@ def test_ui_top_n_keeps_boundary_ties_in_both_measures(counts, expected_rows, mo
     store.update_status(run_id, "completed")
     before = deepcopy(store.results(run_id))
     app, prefix = open_results((store, run_id, codes), monkeypatch)
+    assert app.selectbox(key=prefix + "_top_n").value == "전체"
+    assert len(chart_specs(app)[1]["rows"]) == len(counts)
     app.selectbox(key=prefix + "_top_n").set_value(5).run()
-    chart = chart_specs(app)[2]["data"][0]
-    assert chart["x"] == counts[:expected_rows]
+    chart = chart_specs(app)[1]
+    assert [row["value"] for row in chart["rows"]] == counts[:expected_rows]
     extra = expected_rows - 5
     notices = [caption.value for caption in app.caption if "동률로" in caption.value]
     assert len(notices) == (1 if extra > 0 else 0)
     if extra > 0:
         assert notices[0] == f"동률로 {extra}개 더 표시했습니다."
     assert not any("개 중" in caption.value and "개 표시" in caption.value for caption in app.caption)
-    assert metric_value(app, "묶음의 고유 VOC") == f"{max(counts)}건"
-    app.radio(key=prefix + "_measure").set_value("범위 내 비율").run()
-    assert chart_specs(app)[2]["data"][0]["x"] == pytest.approx([
+    assert len(response_table(app)) == max(counts)
+    assert [row["percent"] for row in chart_specs(app)[1]["rows"]] == pytest.approx([
         count / max(counts) * 100 for count in counts[:expected_rows]])
-    app.selectbox(key=prefix + "_top_n").set_value(10).run()
-    assert len(chart_specs(app)[2]["data"][0]["x"]) == len(counts)
+    assert app.selectbox(key=prefix + "_top_n").options[0] == "전체"
+    app.selectbox(key=prefix + "_top_n").set_value("전체").run()
+    assert len(chart_specs(app)[1]["rows"]) == len(counts)
+    assert [row["value"] for row in chart_specs(app)[1]["rows"]] == counts
     assert not any("동률로" in caption.value for caption in app.caption)
     # 추가로 표시된 분류도 원문 조회에 사용할 수 있어야 한다.
-    app.radio(key=prefix + "_mode").set_value("세부분류 직접 선택").run()
-    app.multiselect(key=prefix + "_codes").set_value([codes[expected_rows - 1].id]).run()
-    assert metric_value(app, "묶음의 고유 VOC") == f"{counts[expected_rows - 1]}건"
+    chart_event(app, "code", "open", [codes[expected_rows - 1].id])
+    assert len(response_table(app)) == counts[expected_rows - 1]
     assert store.results(run_id) == before and not app.exception and not app.error
 
 
 def test_manual_correction_refreshes_charts_exports_and_selection_revision(prepared, monkeypatch):
     store, run_id, book_id = prepared
     codes = store.codebook(book_id)["codes"]
-    app, _ = open_results((store, run_id, codes), monkeypatch)
-    before_ids = [chart.proto.id for chart in app.get("plotly_chart")]
+    app, prefix = open_results((store, run_id, codes), monkeypatch)
+    before_signatures = [data["signature"] for data in chart_specs(app)]
     raw = deepcopy(store.results(run_id))
     rows = rows_for(store, run_id)
     rows[0]["sentiment"] = "중립"
     rows[0]["code_id"] = "C4"
     save(store, run_id, rows)
     app.run()
-    assert before_ids != [chart.proto.id for chart in app.get("plotly_chart")]
-    sentiments = chart_specs(app)[1]["data"][0]
-    assert sentiments["x"] == [0, 1, 1, 0]
-    assert {row[0] for row in chart_specs(app)[2]["data"][0]["customdata"]} == {"C2", "C4"}
+    assert before_signatures != [data["signature"] for data in chart_specs(app)]
+    sentiments = pie_spec(app)
+    assert sentiments["labels"] == ["부정", OTHER_SENTIMENT] and sentiments["values"] == [1, 1]
+    assert not app.dataframe
+    assert {row["members"][0] for row in chart_specs(app)[1]["rows"]} == {"C2", "C4"}
     export = dashboard_export(dashboard((store, run_id, codes)), store.run(run_id), store.codebook(book_id), "전체")
     assert export["결과 개정"].eq(1).all() and store.results(run_id) == raw
     assert not app.exception and not app.error

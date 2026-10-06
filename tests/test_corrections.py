@@ -6,6 +6,8 @@ import sqlite3
 import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
+from test_grouping import select_response, response_table
+from result_chart_helpers import table_event
 
 from src import ai as ai_module, config
 from src.ai import PROMPT_VERSION
@@ -365,33 +367,72 @@ def test_ui_review_resolution_and_completed_run_default(prepared):
     assert app.selectbox(key=choice_key).value == run  # 미완료 후보보다 이전 완료 결과가 기본
     app.selectbox(key=choice_key).set_value(new).run()
     assert not app.exception and not app.error
+    select_response(app, "V0001")
+    next(button for button in app.button if button.label == "확인·수정").click().run()
     prefix = f"correction_{new}_0_V0001_1_0"
     app.session_state[prefix + "_editor"] = {"edited_rows": {0: {"sentiment": "중립"}}, "deleted_rows": [], "added_rows": []}
     app.text_input(key=prefix + "_reason").set_value("새 기준에서 이전 감성 유지")
-    next(button for button in app.button if button.label == "검토 완료·수정 저장").click().run()
+    next(button for button in app.button if button.label == "확인하고 저장").click().run()
     assert not app.exception and not app.error
     assert store.run(new)["status"] == "completed"
 
 
-def test_ui_manual_edit_cancel_and_save_updates_results_without_ai(prepared, monkeypatch):
+def test_ui_inline_edit_updates_results_without_duplicate_editor_or_ai(prepared, monkeypatch):
     store, run, _ = prepared
     monkeypatch.setattr(ai_module, "GeminiAI", lambda *args: pytest.fail("수정 저장은 AI 호출 금지"))
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     app.radio(key="nav").set_value("3. 분류 결과").run()
-    prefix = f"correction_{run}_0_V0001_0_0"
-    app.session_state[prefix + "_editor"] = {"edited_rows": {0: {"sentiment": "중립"}}, "deleted_rows": [], "added_rows": []}
-    next(button for button in app.button if button.label == "편집 취소").click().run()
+    select_response(app, "V0001")
+    editing_key = f"group_{run}_{store.run(run)['codebook_id']}_editing_voc"
+    app.session_state[editing_key] = "V0001"  # 개편 전 열어둔 편집창도 다시 표시하지 않는다.
+    app.run()
+    assert app.session_state.get(editing_key) is None
+    assert not any(button.label in {"이 응답 수정", "편집 취소", "수정 저장"} for button in app.button)
+    assert app.expander[-1].label == "수정 이력" and not app.expander[-1].proto.expanded
+    assert not any(title.value == "응답 상세" for title in app.subheader)
     assert store.run(run)["result_revision"] == 0
-    prefix = f"correction_{run}_0_V0001_0_1"
-    app.session_state[prefix + "_editor"] = {"edited_rows": {0: {"sentiment": "중립"}}, "deleted_rows": [], "added_rows": []}
-    app.text_input(key=prefix + "_reason").set_value("감성 정정")
-    next(button for button in app.button if button.label == "수정 저장").click().run()
+    table_event(app, "sentiment", id="V0001", sentiments=["중립", "부정"])
     assert not app.exception and not app.error
     assert rows_for(store, run)[0]["sentiment"] == "중립"
     fresh = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
     fresh.radio(key="nav").set_value("3. 분류 결과").run()
     assert not fresh.exception and not fresh.error
-    assert any("개정 1" in caption.value for caption in fresh.caption)
+    select_response(fresh, "V0001")
+    shown = response_table(fresh)
+    assert shown.loc[shown["VOC ID"].eq("V0001"), "감성"].str.contains("중립").all()
+
+
+def test_inline_editor_preserves_hidden_subject_evidence(prepared):
+    store, run, _ = prepared
+    first = result()
+    first.issues[0].subject_label = "배송 업체"
+    first.issues[0].subject_evidence_text = "배송은 빠름"
+    first.issues[0].subject_evidence_source = "original"
+    store.save_result(run, 0, "V0001", first)
+    store.update_status(run, "completed")
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
+    app.radio(key="nav").set_value("3. 분류 결과").run()
+    select_response(app, "V0001")
+    table_event(app, "sentiment", id="V0001", sentiments=["중립", "부정"])
+    assert not app.exception and not app.error, [error.value for error in app.error]
+    current = rows_for(store, run)[0]
+    assert current["sentiment"] == "중립" and current["subject_label"] == "배송 업체"
+    assert current["subject_evidence_text"] == "배송은 빠름" and current["subject_evidence_source"] == "original"
+    assert not app.exception and not app.error and len(app.get("json")) == 0
+
+
+def test_no_content_response_keeps_detail_edit_and_cancel_without_writing(prepared):
+    store, run, _ = prepared
+    raw = deepcopy(store.results(run))
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py").run()
+    app.radio(key="nav").set_value("3. 분류 결과").run()
+    select_response(app, "V0002")
+    next(button for button in app.button if button.label == "이 응답 수정").click().run()
+    assert app.radio(key=f"correction_{run}_0_V0002_0_0_state").value == "no_content"
+    next(button for button in app.button if button.label == "편집 취소").click().run()
+    assert not app.exception and not app.error
+    assert store.run(run)["result_revision"] == 0 and store.results(run) == raw
+    assert not store.correction_history(run)
 
 
 def test_ui_codebook_edit_and_recode_with_parent(prepared, monkeypatch):

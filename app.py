@@ -231,10 +231,10 @@ def main():
         st.session_state.dataset_id = st.session_state.pop("pending_dataset")
     datasets = store.list_datasets()
     with st.sidebar:
-        st.title("VOC Analyzer")
-        nav_labels = {"1. 입력": ":material/description: 데이터 입력",
-                      "2. 분류 기준표": ":material/table_chart: 분류 기준표",
-                      "3. 분류 결과": ":material/bar_chart: 분류 결과"}
+        st.title("VOC Analyzer", anchor=False)
+        nav_labels = {"1. 입력": ":material/description: 01 데이터 입력",
+                      "2. 분류 기준표": ":material/table_chart: 02 분류 기준표",
+                      "3. 분류 결과": ":material/bar_chart: 03 분류 결과"}
         page = st.radio("분석 단계", list(nav_labels), key="nav",
             format_func=nav_labels.get, label_visibility="collapsed")
     if not datasets:

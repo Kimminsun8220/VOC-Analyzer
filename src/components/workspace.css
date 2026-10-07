@@ -7,9 +7,9 @@
 }
 [data-testid="stAppViewContainer"] { background: var(--voc-surface); color: var(--voc-text); }
 [data-testid="stMainBlockContainer"] { max-width: 1360px; padding: 2rem 2rem 3rem; }
-[data-testid="stSidebar"] { min-width: 208px !important; width: 208px !important; max-width: 208px !important; background: var(--voc-bg); border-right: 1px solid var(--voc-border); }
-[data-testid="stSidebar"] [role="radiogroup"] { gap: 8px; }
-[data-testid="stSidebar"] [role="radiogroup"] label { padding: 10px 8px; margin: 0; border-radius: 6px; width: 100%; }
+[data-testid="stSidebar"] { min-width: 256px !important; width: 256px !important; max-width: 256px !important; background: #edf0f3; border-right: 0; box-shadow: none; }
+[data-testid="stSidebar"] [role="radiogroup"] { gap: 2px; padding: 4px; border-radius: 12px; background: #e3e8ed; }
+[data-testid="stSidebar"] [role="radiogroup"] label { margin: 0; border-radius: 8px; width: 100%; }
 [data-testid="stMain"] h2 { font-size: 25px; letter-spacing: -.6px; padding: 0 0 .5rem; }
 [data-testid="stMain"] h3 { font-size: 17px; padding: 0 0 .4rem; letter-spacing: -.3px; }
 [data-testid="stMain"] [data-testid="stCaptionContainer"] { color: var(--voc-muted); font-size: 13px; }
@@ -34,12 +34,18 @@
 @media (max-width: 900px) { [data-testid="stMainBlockContainer"] { padding: 1.25rem 1rem 2rem; } }
 
 /* Result workspace approved in the image preview. */
-[data-testid="stSidebar"] [role="radiogroup"] label { position: relative; padding: 12px 14px; border-left: 3px solid transparent; }
-[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) { background: var(--voc-selected); }
-[data-testid="stSidebar"] [role="radiogroup"] label p { font-size: 15px; font-weight: 550; }
+[data-testid="stSidebar"] [role="radiogroup"] label { position: relative; display: flex; align-items: center; min-height: 44px; padding: 10px 12px; border: 0; cursor: pointer; color: #425263; }
+[data-testid="stSidebar"] [role="radiogroup"] label:hover { background: #d9e1e8; }
+[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) { background: #fff; box-shadow: 0 1px 3px #14283814; color: var(--voc-primary); }
+[data-testid="stSidebar"] [role="radiogroup"] label p { display: flex; align-items: center; gap: 9px; margin: 0; font-size: 15px; font-weight: 500; line-height: 24px; white-space: nowrap; }
+[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p { font-weight: 650; }
+[data-testid="stSidebar"] [role="radiogroup"] label [role="img"] { flex: 0 0 18px; width: 18px; height: 18px; font-size: 18px; line-height: 18px; text-align: center; color: #6b7d8c; }
+[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) [role="img"] { color: #4a7389; }
+[data-testid="stSidebar"] .st-key-nav [data-testid="stWidgetLabel"] p { color: #627180; font-size: 12px; font-weight: 600; letter-spacing: .3px; }
+[data-testid="stSidebar"] .st-key-nav [data-testid="stWidgetLabel"] { padding: 0 0 8px 12px; }
 [data-testid="stSidebar"] [role="radiogroup"] label:has(input:focus-visible) { outline: 2px solid var(--voc-primary); outline-offset: 2px; }
 .st-key-result_header { gap: 20px !important; }
-.st-key-result_header h2 { font-size: 32px; font-weight: 750; letter-spacing: -1px; padding: 0; white-space: nowrap; }
+.st-key-result_header h2 { font-size: 28px; font-weight: 750; letter-spacing: -1px; padding: 0; white-space: nowrap; }
 .st-key-result_header_tools { min-width: 270px; }
 .st-key-result_header_tools button { min-height: 42px; }
 .st-key-result_dataset { min-width: 180px; max-width: 260px; }
@@ -71,9 +77,11 @@
 [data-testid="stHeader"] { height: 0; background: transparent; }
 [data-testid="stToolbar"] { pointer-events: none; }
 [data-testid="stToolbar"] button { pointer-events: auto; }
-[data-testid="stSidebarHeader"] { height: 32px; min-height: 32px; padding: 4px 10px; }
-[data-testid="stSidebarUserContent"] { width: 100%; padding: 18px 12px !important; }
-[data-testid="stSidebar"] h1 { font-size: 22px; padding: 0 6px 24px; white-space: nowrap; }
+[data-testid="stSidebarHeader"] { height: 24px; min-height: 24px; padding: 0 10px; }
+[data-testid="stSidebarContent"] { padding-inline: 0; }
+[data-testid="stSidebarUserContent"] { width: 100%; max-width: none; margin: 0; box-sizing: border-box; padding: 16px 20px !important; }
+[data-testid="stSidebarUserContent"] > div > [data-testid="stVerticalBlock"] { gap: 12px; }
+[data-testid="stSidebar"] h1 { font-size: 28px; font-weight: 750; letter-spacing: -.8px; line-height: 1.25; padding: 0 0 30px; white-space: nowrap; }
 [data-testid="stSidebar"] .st-key-nav { width: 100%; }
 [data-testid="stSidebar"] [data-testid="stRadioOption"] > div > div:first-child { display: none; }
 [data-testid="stSidebar"] [data-testid="stRadioOption"] { width: 100%; }
@@ -104,7 +112,7 @@
 
 /* Shared page heading; sidebar geometry stays unchanged across pages. */
 .st-key-input_header h2, .st-key-codebook_header h2, .st-key-result_header h2 {
-  font-size: 32px; font-weight: 750; letter-spacing: -1px; padding: 0; margin: 0; line-height: 1.4;
+  font-size: 28px; font-weight: 750; letter-spacing: -1px; padding: 0; margin: 0; line-height: 1.4;
 }
 .st-key-input_header, .st-key-codebook_header, .st-key-result_header { min-height: 48px; }
 .st-key-input_header { border-bottom: 1px solid var(--voc-border); padding-bottom: 24px; margin-bottom: 20px; }

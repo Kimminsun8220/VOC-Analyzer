@@ -42,14 +42,8 @@ def seed_public_demo(store, path=DEMO_PATH):
 
 
 def prepare_cloud_demo(store):
-    import streamlit as st
     from src.config import ENV_PATH
 
     if ENV_PATH.exists():
         return
-    try:
-        enabled = st.secrets.get("ENABLE_CLOUD_SECRETS", False) is True
-    except FileNotFoundError:
-        enabled = False
-    if enabled:
-        seed_public_demo(store)
+    seed_public_demo(store)

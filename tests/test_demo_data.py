@@ -48,3 +48,11 @@ def test_local_environment_does_not_seed_cloud_demo(tmp_path, monkeypatch):
     store = Store(tmp_path / "local.db")
     prepare_cloud_demo(store)
     assert store.list_datasets() == []
+
+
+def test_hosted_demo_does_not_require_ai_credentials(tmp_path, monkeypatch):
+    from src import config
+    monkeypatch.setattr(config, "ENV_PATH", tmp_path / "missing.env")
+    store = Store(tmp_path / "cloud.db")
+    prepare_cloud_demo(store)
+    assert {d["name"] for d in store.list_datasets()} == {"SSI", "상품평 VOC"}

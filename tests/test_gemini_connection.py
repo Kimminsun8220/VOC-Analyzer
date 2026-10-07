@@ -43,6 +43,35 @@ def test_legacy_toml_is_not_used_when_env_is_missing(tmp_path, monkeypatch):
     assert config.load_gemini_key() == ""
 
 
+def test_cloud_key_requires_explicit_opt_in(tmp_path, monkeypatch):
+    import streamlit as st
+
+    monkeypatch.setattr(config, "ENV_PATH", tmp_path / ".env")
+    monkeypatch.setattr(st, "secrets", {"GEMINI_API_KEY": "cloud-example"})
+    assert config.load_gemini_key() == ""
+    monkeypatch.setattr(st, "secrets", {
+        "ENABLE_CLOUD_SECRETS": True, "GEMINI_API_KEY": "cloud-example",
+    })
+    assert config.load_gemini_key() == "cloud-example"
+    # Explicit local paths never inherit a hosted key.
+    assert config.load_gemini_key(tmp_path / "missing.env") == ""
+    config.ENV_PATH.write_text("GEMINI_API_KEY=local-example", encoding="utf-8")
+    assert config.load_gemini_key() == "local-example"
+
+
+@pytest.mark.parametrize("key", ["secret with spaces", "비밀키", 123])
+def test_invalid_cloud_key_is_rejected_without_echo(tmp_path, monkeypatch, key):
+    import streamlit as st
+
+    monkeypatch.setattr(config, "ENV_PATH", tmp_path / ".env")
+    monkeypatch.setattr(st, "secrets", {
+        "ENABLE_CLOUD_SECRETS": True, "GEMINI_API_KEY": key,
+    })
+    with pytest.raises(ValueError) as error:
+        config.load_gemini_key()
+    assert str(key) not in str(error.value)
+
+
 def test_connection_uses_header_and_does_not_send_voc(monkeypatch):
     def fake_open(request, timeout):
         assert request.full_url == gemini_connection.MODELS_URL

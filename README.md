@@ -106,7 +106,22 @@ Python 3.14 환경에서 확인했습니다. 프로젝트 폴더의 PowerShell�
 
 ## Gemini 설정
 
-프로젝트 최상위 `.env`에 `GEMINI_API_KEY=본인의키`를 저장합니다. 처음에는 `.env.example`을 복사해서 사용합니다. 화면에는 키를 표시하지 않으며 다른 프로젝트·전역 환경 변수의 키를 가져오지 않습니다.
+로컬에서는 프로젝트 최상위 `.env`에 `GEMINI_API_KEY=본인의키`를 저장합니다. 처음에는 `.env.example`을 복사해서 사용합니다. 화면에는 키를 표시하지 않으며 전역 환경 변수의 키를 가져오지 않습니다. `.env`가 없을 때만 아래에서 명시적으로 활성화한 Streamlit Secrets를 사용합니다.
+
+### 발표용 Streamlit Community Cloud 배포
+
+1. Community Cloud에서 `Kimminsun8220/VOC-Analyzer`, 배포할 브랜치, 실행 파일 `app.py`를 선택합니다.
+2. Advanced settings에서 Python 3.14를 선택합니다. 로컬에서 확인한 버전이며 배포 환경의 설치 결과도 확인해야 합니다.
+3. Secrets에 아래 설정을 넣고 실제 키는 관리 화면에서만 입력합니다. 비밀 값은 Git에 커밋하지 않습니다.
+
+```toml
+ENABLE_CLOUD_SECRETS = true
+GEMINI_API_KEY = "발표용 API 키"
+```
+
+앱은 Git에 포함되지 않은 로컬 분석 DB를 가져가지 않으므로 빈 자료 목록으로 시작합니다. 발표용 샘플을 업로드해서 사용합니다. 현재 앱은 로그인 사용자별 데이터를 분리하지 않아 같은 배포 주소의 저장 자료를 방문자가 함께 조회·수정할 수 있습니다. 실제 고객 자료는 넣지 말고 발표용 가상 자료를 사용하거나 앱 접근 대상을 제한합니다. 클라우드의 로컬 SQLite 저장은 영구 보관을 보장하지 않으므로 필요한 결과는 Excel로 내려받습니다. 발표 후에는 Community Cloud 관리 화면에서 배포 앱을 삭제할 수 있습니다.
+
+[공식 배포 안내](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy)
 
 - 모델 입력·연결 점검은 사용자 화면에서 제공하지 않습니다. 분석은 기본 모델로 실행합니다.
 - AI 생성·분류 버튼을 눌러야 선택한 VOC 본문과 분석 배경이 Gemini로 전송됩니다. 별점·상품명·사람의 기존 코드 등 다른 열은 로컬에 보존하고 AI 입력에서 제외합니다.

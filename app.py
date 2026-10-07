@@ -15,6 +15,7 @@ from src.codebook_picker_ui import show_codebook_picker
 from src.codebook_table import table_has_changes
 from src.corrections import inheritance_source
 from src.dataset_ui import clear_deleted_dataset_state, show_dataset_picker
+from src.demo_data import prepare_cloud_demo
 from src.grouping_ui import show_grouped_results
 from src.ingestion import excel_sheet_names, prepare_preview, read_csv, read_excel, read_pasted_text
 from src.manual_ui import show_manual
@@ -238,6 +239,7 @@ def main():
     st.set_page_config(page_title="AI VOC Analyzer", layout="wide")
     apply_workspace_theme()
     store = Store()
+    prepare_cloud_demo(store)
     clear_deleted_dataset_state()
     if "page" in st.session_state:
         st.session_state.nav = st.session_state.pop("page")

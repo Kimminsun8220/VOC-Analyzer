@@ -28,9 +28,9 @@ def test_sentiment_category_leaf_originals_and_clear_keep_denominator(completed,
     assert [(r["count"], r["percent"]) for r in chart_data(app, "category")["rows"]] == [
         (r["count"], r["percent"]) for r in left]
     right = chart_data(app)
-    assert right["denominator"] == 2
-    assert right["maximum"] == chart_data(app, "category")["maximum"] == 2
-    assert [(r["members"], r["count"], r["percent"]) for r in right["rows"]] == [(["quality"], 1, 50)]
+    assert right["denominator"] == 3
+    assert right["maximum"] == chart_data(app, "category")["maximum"] == 3
+    assert [(r["members"], r["count"], r["percent"]) for r in right["rows"]] == [(["quality"], 1, pytest.approx(100/3))]
     chart_event(app, "code", "open", ["quality"])
     assert set(response_table(app)["VOC ID"]) == {"V0002"}
     app.session_state[prefix + "_show_originals"] = False
@@ -38,7 +38,7 @@ def test_sentiment_category_leaf_originals_and_clear_keep_denominator(completed,
     assert app.session_state[prefix + "_drill_categories"] == ["제품"]
     chart_event(app, "category", "filter", ["제품"])
     assert len(chart_data(app)["rows"]) == 2
-    assert chart_data(app)["denominator"] == 2
+    assert chart_data(app)["denominator"] == 3
     assert sentiment_data(app)["selected"] == "부정"
 
 
@@ -46,7 +46,7 @@ def test_clear_conditions_keeps_merges_and_sentiment_change_clears_category(comp
     app, prefix = open_results(completed, monkeypatch)
     chart_event(app, "code", "merge", ["speed"], ["wrong"])
     layout = deepcopy(app.session_state[prefix + "_layout"])
-    sentiment_event(app, "혼합")
+    sentiment_event(app, "부정")
     chart_event(app, "category", "filter", ["배송"])
     sentiment_event(app, "긍정")
     assert app.session_state[prefix + "_drill_categories"] == []

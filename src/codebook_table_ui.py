@@ -18,6 +18,7 @@ def interactive_table(book):
     draft = st.session_state[state_key]
     draft.setdefault("filters", {"category": None, "name": None})
     draft.setdefault("kept_rows", [])
+    draft.setdefault("sort", {"category": None, "name": None})
     notice = st.session_state.pop(prefix + "_table_error", None)
     if notice:
         st.error(notice)
@@ -31,7 +32,7 @@ def interactive_table(book):
         js=(ASSETS / "criteria_table.js").read_text(encoding="utf-8"), isolate_styles=False)
     result = renderer(key=component_key,
         data={"book_id": book["id"], "rows": visible_rows(draft), "revision": draft["revision"], "can_undo": bool(draft["history"]), "focus": draft["focus"],
-              "filters": draft["filters"], "kept_rows": draft["kept_rows"]},
+              "filters": draft["filters"], "sort": draft["sort"], "kept_rows": draft["kept_rows"]},
         default={"edits": None}, on_action_change=lambda: None, on_edits_change=lambda: None)
     if result.edits and result.edits.get("revision") == draft["revision"]:
         update_fields(draft, result.edits["rows"])

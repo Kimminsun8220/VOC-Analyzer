@@ -70,3 +70,23 @@
 @media (prefers-reduced-motion: no-preference) {
   .result-bars .result-bars-row, .result-bars .result-bars-grip, .result-bars .result-bars-more { transition: background .12s, opacity .12s; }
 }
+
+/* Compact overlapping mention rates; counts are secondary to labels and percentages. */
+.result-bars .result-count { font-size: 12px; font-weight: 400; color: #697986; }
+.result-bars .result-percent { font-size: inherit; font-weight: inherit; color: inherit; }
+.result-mention-heading { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; color: #526579; margin: 0 0 4px; }
+.result-bars .result-mention-help { font-size: 14px; padding: 4px; color: #697986; }
+.result-mention-denominator { margin-left: auto; font-size: 12px; font-weight: 400; }
+.result-bars .result-mention-row { display: grid; grid-template-columns: 82px minmax(24px,1fr) 112px; align-items: center; gap: 12px; width: 100%; min-height: 36px; padding: 4px 12px; font-size: 15px; font-weight: 500; text-align: left; border-radius: 4px; }
+.result-mention-track { height: 10px; background: #e8edf1; overflow: hidden; border-radius: 3px; }
+.result-mention-fill { display: block; height: 100%; border-radius: 3px; }
+.result-bars .result-mention-neutral { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; min-height: 28px; padding: 2px 12px; font-size: 12px; color: #697986; }
+.result-bars .result-mention-row:hover, .result-bars .result-mention-neutral:hover { background: #f3f7f9; }
+.result-bars .result-mention-row[aria-pressed='true'], .result-bars .result-mention-neutral[aria-pressed='true'] { background: #e5f1f5; box-shadow: none; }
+@container (max-width: 400px) {
+ .result-bars .result-mention-row { grid-template-columns: 70px minmax(20px,1fr) 100px; gap: 6px; font-size: 14px; }
+ .result-mention-denominator { font-size: 11px; }
+}
+@media (pointer: coarse) { .result-bars .result-mention-row, .result-bars .result-mention-neutral { min-height: 44px; } }
+
+.result-bars .result-mention-row .result-bars-value { grid-area: auto; }

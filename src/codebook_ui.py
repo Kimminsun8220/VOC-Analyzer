@@ -29,6 +29,7 @@ def show_codebook_changes(store, book, with_ai, save_container=None, save_disabl
             if new_id:
                 following = table_draft(store.codebook(new_id))
                 following["filters"] = deepcopy(draft["filters"])
+                following["sort"] = deepcopy(draft.get("sort", {"category": None, "name": None}))
                 following["kept_rows"] = list(draft["kept_rows"])
                 st.session_state[f"revise_{new_id}_draft"] = following
                 st.session_state.confirmed_book = new_id

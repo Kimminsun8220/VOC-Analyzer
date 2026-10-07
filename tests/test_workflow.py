@@ -234,7 +234,7 @@ def test_supplement_reclassifies_all_and_preserves_previous_round():
             return CodingBatch(results=[opinion(row["id"], [issue(
                 code_id="C1" if row["text"] == "빠름" else new_code, evidence=row["text"],
                 missing_code="구성품 누락" if row["text"] != "빠름" and not new_code else "")]) for row in records])
-        def supplement(self, records, codes, context, candidates, constraints):
+        def supplement(self, records, codes, context, candidates, constraints, frequency_summary=None):
             return CodebookDraft(codes=[{"category": "제품", "name": "구성품 누락", "definition": "구성품이 빠짐",
                 "reason": "기존 코드에 없는 의미", "evidence": [{"voc_id": "V0002", "quote": "구성품 누락"}]}])
     ai = SupplementAI()

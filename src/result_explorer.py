@@ -7,7 +7,7 @@ from src.chart_data import build_dashboard, dashboard_export
 from src.grouping import group_results
 from src.grouping import SENTIMENTS
 from src.result_groups import grouped_dashboard
-from src.category_summary import response_sentiment_labels, category_sentiment_labels
+from src.category_summary import response_sentiment_labels, category_sentiment_labels, sentiment_response_ids
 
 RESPONSE_FILTERS = ["전체", "의견 있음", "내용 없음", "검토 필요", "실패·미처리"]
 NORMAL_STATES = {"의견 있음", "없음·무응답·모름"}
@@ -28,8 +28,8 @@ def filtered_responses(originals, issues, codes, selected_ids, filters):
     base = response_view(originals, base_group, selected_ids, "전체")
     response_sentiment = filters.get("_response_sentiment")
     if response_sentiment:
-        labels = response_sentiment_labels(originals, issues)
-        base = base[base["VOC ID"].isin(labels.index[labels.eq(response_sentiment)])].copy()
+        ids = sentiment_response_ids(originals, issues, response_sentiment)
+        base = base[base["VOC ID"].isin(ids)].copy()
     category_sentiment = filters.get("_category_sentiment")
     if category_sentiment:
         labels = category_sentiment_labels(originals, issues, category_sentiment["categories"])
@@ -44,12 +44,16 @@ def filtered_responses(originals, issues, codes, selected_ids, filters):
             view = view[view[column].str.contains(query, regex=False, na=False)].copy()
     sentiments = filters.get("감성", {}).get("values")
     matching_issues = base_group.issues
+    if response_sentiment in ("긍정", "부정"):
+        matching_issues = matching_issues[matching_issues["감성"].eq(response_sentiment)].copy()
+        view = view[view["VOC ID"].isin(matching_issues["VOC ID"])].copy()
     if sentiments is not None:
         matching_issues = matching_issues[matching_issues["감성"].isin(sentiments)].copy()
         matches = set(matching_issues["VOC ID"])
         if "중립" in sentiments:
             matches.update(base.loc[base["감성"].eq("중립"), "VOC ID"])
         view = view[view["VOC ID"].isin(matches)].copy()
+    if sentiments is not None or response_sentiment in ("긍정", "부정"):
         # 감성 조건에 해당하는 의견·분류를 화면과 현재 의견 CSV에 함께 적용한다.
         summary = group_results(originals, matching_issues, codes, selected_ids).originals.set_index("VOC ID")
         has_opinions = view["VOC ID"].isin(summary.index)

@@ -129,6 +129,25 @@ def test_filtered_edit_saves_hidden_codes_and_does_not_store_view_as_code_change
         update_fields(draft, rows[:1])  # 표시한 행만 보내 저장하는 오류를 차단한다.
 
 
+def test_sorting_is_view_state_and_survives_edits_without_changing_codes(book):
+    store, source = book
+    draft = table_draft(source)
+    original = visible_rows(draft)
+    update_view(draft, {"sort": {"category": "desc", "name": "asc"}})
+    assert draft["sort"] == {"category": "desc", "name": "asc"}
+    assert visible_rows(draft) == original and not table_has_changes(source, draft)
+    update_view(draft, {"sort": {"category": "invalid", "name": "asc"}})
+    assert draft["sort"]["category"] == "desc"
+    added = operate(draft, "add")
+    restored = operate(added, "undo")
+    assert restored["sort"] == draft["sort"] and visible_rows(restored) == original
+    original[0]["name"] = "도착 속도"
+    update_fields(draft, original)
+    saved = store.codebook(save_table_draft(store, source, draft))
+    assert [code.id for code in saved["codes"]] == [code.id for code in source["codes"]]
+    assert all("sort" not in change for change in saved["changes"])
+
+
 def test_structural_edits_preserve_filter_and_undo_keeps_hidden_rows(book):
     _, source = book
     draft = table_draft(source)

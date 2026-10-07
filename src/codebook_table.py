@@ -19,7 +19,7 @@ def table_draft(book):
     parts = {row["id"]: row.get("parts", []) for row in layouts[-1]} if layouts else {}
     rows = [{**code.model_dump(), "parts": deepcopy(parts.get(code.id, []))} for code in book["codes"]]
     return {"rows": rows, "changes": [], "history": [], "revision": 0, "focus": None,
-            "filters": {"category": None, "name": None}, "kept_rows": []}
+            "filters": {"category": None, "name": None}, "sort": {"category": None, "name": None}, "kept_rows": []}
 
 
 def visible_rows(draft):
@@ -43,6 +43,9 @@ def update_fields(draft, rows):
 
 
 def update_view(draft, payload):
+    sorting = payload.get("sort")
+    if isinstance(sorting, dict) and all(sorting.get(field) in (None, "asc", "desc") for field in ("category", "name")):
+        draft["sort"] = {field: sorting.get(field) for field in ("category", "name")}
     filters = payload.get("filters")
     if isinstance(filters, dict) and all(filters.get(field) is None or
             isinstance(filters[field], list) and all(isinstance(value, str) for value in filters[field])

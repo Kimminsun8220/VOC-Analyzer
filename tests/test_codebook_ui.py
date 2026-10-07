@@ -67,6 +67,21 @@ def test_split_identifies_incomplete_second_row(split_screen):
     assert len(store.list_codebooks(dataset)) == 1
 
 
+def test_save_preserves_sort_and_filters_in_new_version_without_reordering_codes(split_screen):
+    store, dataset, _, app, prefix = split_screen
+    draft = deepcopy(app.session_state[prefix + "_draft"])
+    draft["sort"] = {"category": "desc", "name": "asc"}
+    draft["filters"] = {"category": ["종합 평가"], "name": None}
+    draft["rows"][0]["definition"] = "구매 절차 전반에 관한 의견"
+    app.session_state[prefix + "_draft"] = draft
+    app.button(key=prefix + "_save").click().run()
+    assert not app.exception and not app.error
+    saved = store.codebook(store.list_codebooks(dataset)[0]["id"])
+    following = app.session_state[f"revise_{saved['id']}_draft"]
+    assert following["sort"] == draft["sort"] and following["filters"] == draft["filters"]
+    assert [code.id for code in saved["codes"]] == ["C1", "C2", "C3"]
+
+
 def test_split_retry_saves_inherited_category_and_preserves_original(split_screen):
     store, dataset, book, app, prefix = split_screen
     before = deepcopy(store.codebook(book))

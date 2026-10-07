@@ -9,15 +9,36 @@ export function filterOptions(rows, filters, field) {
   return [...new Set(rows.filter(row => matchesFilters(row, filters, field)).map(row => filterValue(row, field)))].sort((a, b) => a.localeCompare(b, 'ko', {numeric: true}));
 }
 
+export function groupedRows(rows, sorting = {}) {
+  const groups = new Map();
+  for (const row of rows) {
+    const category = filterValue(row, 'category');
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(row);
+  }
+  const compare = (a, b) => a.localeCompare(b, 'ko', {numeric: true});
+  const categories = [...groups.keys()].sort((a, b) => {
+    if (!a || !b) return a ? -1 : b ? 1 : 0;
+    return sorting.category ? compare(a, b) * (sorting.category === 'desc' ? -1 : 1) : 0;
+  });
+  return categories.flatMap(category => {
+    const group = groups.get(category);
+    if (sorting.name) group.sort((a, b) => compare(filterValue(a, 'name'), filterValue(b, 'name')) * (sorting.name === 'desc' ? -1 : 1));
+    return group;
+  });
+}
+
 export default function(component) {
   const { data, parentElement, setStateValue, setTriggerValue } = component;
   const root = parentElement.querySelector('.criteria-table');
   if (root.dataset.bookId !== data.book_id) {
     root.dataset.bookId = data.book_id;
     root.filters = data.filters || {category: null, name: null};
+    root.sort = data.sort || {category: null, name: null};
     root.keptRows = new Set(data.kept_rows || []);
     delete root.dataset.revision;
   }
+  root.sort ||= data.sort || {category: null, name: null};
   const fitCell = input => {
     input.style.height = 'auto';
     input.style.height = `${Math.max(parseFloat(getComputedStyle(input).minHeight), input.scrollHeight + 2)}px`;
@@ -40,12 +61,7 @@ export default function(component) {
     if (!root.isConnected || !control || root.contains(control) || control.textContent.trim() !== '분류 기준표 저장') return;
     event.preventDefault(); event.stopImmediatePropagation();
     // Hidden rows remain in the snapshot so filtering never deletes saved codes.
-    const snapshot = Array.from(root.querySelectorAll('tbody tr[data-row-id]')).map(tr => {
-      const row = {id: tr.dataset.rowId};
-      for (const field of ['category', 'name', 'definition']) row[field] = tr.querySelector(`[data-field="${field}"]`).value;
-      return row;
-    });
-    setTriggerValue('action', {kind: 'save', rows: snapshot, filters: root.filters, kept_rows: [...root.keptRows], revision: data.revision, nonce: crypto.randomUUID()});
+    setTriggerValue('action', {kind: 'save', rows: rows(), filters: root.filters, sort: root.sort, kept_rows: [...root.keptRows], revision: data.revision, nonce: crypto.randomUUID()});
   };
   root.saveHandler = saveHandler;
   document.addEventListener('click', saveHandler, true);
@@ -77,20 +93,24 @@ export default function(component) {
     menuTrigger = null;
   };
   root.closeMenu = closeMenu;
-  const rows = () => Array.from(root.querySelectorAll('tbody tr[data-row-id]')).map(tr => {
-    const row = {id: tr.dataset.rowId};
-    for (const field of ['category', 'name', 'definition']) row[field] = tr.querySelector(`[data-field="${field}"]`).value;
-    return row;
-  });
+  function rows() {
+    const byId = new Map(Array.from(root.querySelectorAll('tbody tr[data-row-id]')).map(tr => {
+      const row = {id: tr.dataset.rowId};
+      for (const field of ['category', 'name', 'definition']) row[field] = tr.querySelector(`[data-field="${field}"]`).value;
+      return [row.id, row];
+    }));
+    // Display order must never change the edit/save contract or hidden rows.
+    return data.rows.map(row => byId.get(row.id));
+  }
   const send = (kind, extra = {}) => {
     if (pending) return;
     pending = true;
     closeMenu();
     status.textContent = '변경 중…';
-    setTriggerValue('action', {kind, ...extra, rows: rows(), filters: root.filters, kept_rows: [...root.keptRows], revision: data.revision, nonce: crypto.randomUUID()});
+    setTriggerValue('action', {kind, ...extra, rows: rows(), filters: root.filters, sort: root.sort, kept_rows: [...root.keptRows], revision: data.revision, nonce: crypto.randomUUID()});
   };
   const publish = () => {
-    if (!pending) setStateValue('edits', {revision: data.revision, rows: rows(), filters: root.filters, kept_rows: [...root.keptRows]});
+    if (!pending) setStateValue('edits', {revision: data.revision, rows: rows(), filters: root.filters, sort: root.sort, kept_rows: [...root.keptRows]});
   };
   const button = (label, action, className) => {
     const result = make('button', className, label);
@@ -108,14 +128,19 @@ export default function(component) {
   };
   const activeFilters = () => filterFields.some(field => root.filters[field] !== null);
   const filterButtons = {};
+  const sortHeadings = {};
   const refreshFilters = () => {
+    const byId = new Map(Array.from(body.querySelectorAll('tr[data-row-id]')).map(tr => [tr.dataset.rowId, tr]));
+    for (const row of groupedRows(rows(), root.sort)) body.append(byId.get(row.id));
+    body.append(emptyRow);
     let shown = 0;
     let previousCategory = null;
     for (const tr of body.querySelectorAll('tr[data-row-id]')) {
       const row = {id: tr.dataset.rowId, category: tr.querySelector('[data-field="category"]').value, name: tr.querySelector('[data-field="name"]').value};
       tr.hidden = !matchesFilters(row, root.filters) && !root.keptRows.has(row.id);
-      tr.classList.toggle('criteria-category-start', !tr.hidden && previousCategory !== null && previousCategory !== row.category);
-      if (!tr.hidden) { previousCategory = row.category; shown += 1; tr.querySelectorAll('textarea').forEach(fitCell); }
+      const category = filterValue(row, 'category');
+      tr.classList.toggle('criteria-category-start', !tr.hidden && previousCategory !== null && previousCategory !== category);
+      if (!tr.hidden) { previousCategory = category; shown += 1; tr.querySelectorAll('textarea').forEach(fitCell); }
     }
     emptyRow.hidden = shown > 0;
     emptyText.textContent = activeFilters() ? '조건에 맞는 분류가 없습니다.' : '분류를 추가해주세요.';
@@ -123,7 +148,10 @@ export default function(component) {
     for (const field of filterFields) {
       const active = root.filters[field] !== null;
       filterButtons[field].classList.toggle('criteria-filter-active', active);
-      filterButtons[field].title = active ? '필터 적용 중' : '필터';
+      const direction = root.sort[field];
+      filterButtons[field].title = `정렬·필터${direction ? ` · ${direction === 'asc' ? '오름차순' : '내림차순'}` : ''}${active ? ' · 필터 적용 중' : ''}`;
+      sortHeadings[field].th.setAttribute('aria-sort', direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none');
+      sortHeadings[field].indicator.textContent = direction === 'asc' ? ' ↑' : direction === 'desc' ? ' ↓' : '';
       filterButtons[field].querySelector('path').setAttribute('d', active ? 'M3 4h18l-7 8v7l-4 2v-9z' : 'm6 9 6 6 6-6');
       filterButtons[field].querySelector('.criteria-filter-state').textContent = active ? '적용 중' : '';
     }
@@ -143,8 +171,19 @@ export default function(component) {
     const options = filterOptions(rows(), root.filters, field);
     let selected = new Set(root.filters[field] === null ? options : root.filters[field]);
     menu = make('div', 'criteria-filter-menu');
-    menu.setAttribute('role', 'dialog'); menu.setAttribute('aria-label', `${label} 필터 선택`);
-    menu.append(make('div', 'criteria-filter-title', `${label} 필터`));
+    menu.setAttribute('role', 'dialog'); menu.setAttribute('aria-label', `${label} 정렬·필터 선택`);
+    menu.append(make('div', 'criteria-filter-title', `${label} 정렬·필터`));
+    const sortControls = make('div', 'criteria-sort-actions');
+    for (const [direction, title] of [['asc', '오름차순'], ['desc', '내림차순'], [null, '정렬 해제']]) {
+      const control = button(title, () => {
+        root.sort[field] = direction;
+        closeMenu(true); refreshFilters(); publish();
+        status.textContent = `${label} ${title}`;
+      });
+      control.setAttribute('aria-pressed', String(root.sort[field] === direction));
+      sortControls.append(control);
+    }
+    menu.append(sortControls);
     const search = make('input', 'criteria-filter-search'); search.type = 'search'; search.placeholder = '검색';
     search.setAttribute('aria-label', `${label} 필터 검색`); menu.append(search);
     const selectAll = make('label', 'criteria-filter-option criteria-filter-all');
@@ -222,9 +261,11 @@ export default function(component) {
     const field = index === 1 ? 'category' : index === 2 ? 'name' : null;
     const th = make('th'); th.scope = 'col';
     if (field) {
-      const heading = make('div', 'criteria-filter-heading'); heading.append(make('span', '', title));
+      const heading = make('div', 'criteria-filter-heading');
+      const label = make('span', '', title); const indicator = make('span', 'criteria-sort-indicator'); indicator.setAttribute('aria-hidden', 'true'); label.append(indicator); heading.append(label);
+      sortHeadings[field] = {th, indicator};
       const control = button('', () => openFilter(field, control), 'criteria-filter-button');
-      control.setAttribute('aria-label', `${title} 필터`); control.setAttribute('aria-haspopup', 'dialog'); control.setAttribute('aria-expanded', 'false');
+      control.setAttribute('aria-label', `${title} 정렬·필터`); control.setAttribute('aria-haspopup', 'dialog'); control.setAttribute('aria-expanded', 'false');
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); svg.append(path); control.append(svg);
       control.append(make('span', 'criteria-filter-state')); filterButtons[field] = control;
@@ -285,7 +326,7 @@ export default function(component) {
         fitCell(input);
       };
       if (field !== 'definition') input.onkeydown = event => { if (event.key === 'Enter') event.preventDefault(); };
-      input.onchange = publish;
+      input.onchange = () => { refreshFilters(); publish(); };
       td.append(input); tr.append(td);
     }
     const menuCell = make('td');

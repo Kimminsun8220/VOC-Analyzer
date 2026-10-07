@@ -62,7 +62,6 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None, *, t
         selected_ids = st.session_state[codes_key]
     baseline = group_results(originals, issues, codes)
     if run["status"] == "completed" and not originals.empty:
-        st.subheader("감성 비중", anchor=False)
         sentiment_scope = show_sentiment_overview(store, run, originals, baseline.issues, prefix)
         if sentiment_scope:
             reset()

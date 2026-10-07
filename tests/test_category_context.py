@@ -107,11 +107,11 @@ def test_global_filter_shows_condition_without_second_chart(completed, monkeypat
     app, prefix = open_results(completed, monkeypatch)
     sentiment_event(app, "부정")
     chart_event(app, "category", "filter", ["배송"])
-    assert context_data(app)["condition"] == "배송 · 부정 필터 적용 · 2건"
+    assert context_data(app)["condition"] == "배송 · 부정 필터 적용 · 3건"
     assert context_data(app)["rows"] == [] and not context_data(app)["selected"]
     context_event(app, "긍정")  # A fabricated click cannot add another filter in condition-only mode.
     assert not app.session_state.get(prefix + "_category_sentiment")
-    assert chart_data(app)["denominator"] == 2
+    assert chart_data(app)["denominator"] == 3
 
 
 def test_local_filter_clears_with_parent_or_global_change_and_all_clear(completed, monkeypatch):

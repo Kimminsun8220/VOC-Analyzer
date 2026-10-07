@@ -262,7 +262,7 @@ def test_inheritance_during_auto_supplement_and_resume_does_not_duplicate(prepar
             self.first = result([issue(), issue("C2", "부정", "상담은 불친절"),
                 issue(new_code, "부정", "포장도 나쁨", missing_code="추가 주제" if not new_code else "")])
             return super().classify(records, codes, context, feedback)
-        def supplement(self, records, codes, context, candidates, constraints):
+        def supplement(self, records, codes, context, candidates, constraints, frequency_summary=None):
             return CodebookDraft(codes=[{"category": "새 분류", "name": "추가 주제", "definition": "새 포장 의견",
                 "reason": "검증", "evidence": [{"voc_id": "V0001", "quote": "포장도 나쁨"}]}])
     service = Supplement()

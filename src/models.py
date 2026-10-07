@@ -1,5 +1,6 @@
 """AI 출력 계약과 원문에 대한 검증. 구조 검증은 의미 정확도를 보장하지 않는다."""
 
+import re
 from typing import Literal
 from uuid import uuid4
 
@@ -106,15 +107,57 @@ def validate_codes(codes: list[Code]) -> None:
         definitions.add(definition)
 
 
+def validate_ai_code(item: DraftCode) -> None:
+    """AI 초안의 명시적인 감성 분류를 차단한다. 사용자 직접 편집에는 강제하지 않는다."""
+    polarity_label = r"(?:^|[\s(/·:_-])(?:긍정|부정|중립)(?:적(?:인)?)?(?:\s*(?:평가|의견|반응))?\s*\)?$"
+    if any(re.search(polarity_label, value.strip()) for value in (item.category, item.name)):
+        raise ValueError("분류명에 감성을 붙이지 마세요. 같은 주제의 긍정·부정은 하나의 주제명과 일반 판정 기준으로 통합해주세요.")
+    polarized = set(re.findall(r"(긍정|부정)(?:적(?:인)?)?\s*(?:평가|의견|반응)", item.definition))
+    if len(polarized) == 1:
+        raise ValueError("분류 정의를 한쪽 감성의 사례 요약으로 제한하지 마세요. 긍정·부정 모두에 적용할 일반적인 포함 범위를 작성해주세요.")
+
+
+def ai_name_topics(name: str) -> set[str]:
+    """복합 이름의 명시적인 공통 주제를 찾는다. 일반적인 의미 판정은 AI 지침에서 수행한다."""
+    name = re.sub(r"(?<![a-z])a\s*/\s*s(?![a-z])", "as", normalized(name))
+    parts = re.split(r"\s+및\s+|[/·,]|\s+[와과]\s+", name)
+    aliases = {"휴대편의성": "휴대성", "휴대용이성": "휴대성"}
+    return {aliases.get(part.replace(" ", ""), part.replace(" ", "")) for part in parts if part.strip()}
+
+
+def validate_ai_topic_overlap(proposed, existing=()) -> None:
+    # 기존 사용자 기준끼리의 중복은 여기서 다시 거절하지 않는다.
+    seen = [(code, ai_name_topics(code.name)) for code in existing]
+    existing_count = len(seen)
+    for code in proposed:
+        topics = ai_name_topics(code.name)
+        for index, (other, other_topics) in enumerate(seen):
+            if normalized(code.category) != normalized(other.category):
+                continue
+            # 보완의 완전 중복 제안은 기존 중복 제거 경로에서 처리한다.
+            if index < existing_count and normalized(code.name) == normalized(other.name):
+                continue
+            overlap = topics & other_topics
+            if overlap:
+                common = ", ".join(sorted(overlap))
+                raise ValueError(
+                    f"세부분류 '{other.name}'와 '{code.name}'에 같은 주제({common})가 중복됩니다. "
+                    "같은 뜻은 하나의 세부분류로 통일하고, 복합 분류의 공통 주제와 나머지 평가 축은 "
+                    "근거가 있는 독립된 세부분류로 나눠주세요. 기존 확정 기준이 있으면 임의 변경하지 마세요.")
+        seen.append((code, topics))
+
+
 def materialize_codes(draft: CodebookDraft, records: list[dict], existing: list[Code] | None = None) -> list[Code]:
     originals = {row["id"]: row["text"] for row in records}
     codes = list(existing or [])
     for item in draft.codes:
+        validate_ai_code(item)
         for source in item.evidence:
             if source.voc_id not in originals or source.quote not in originals[source.voc_id]:
                 raise ValueError(f"분류 기준표 근거가 원문과 일치하지 않습니다: {source.voc_id}. 이 ID의 원문을 그대로 인용해주세요.")
         codes.append(Code(id="C" + uuid4().hex[:12], **item.model_dump()))
     validate_codes(codes)
+    validate_ai_topic_overlap(draft.codes, existing or [])
     return codes
 
 
@@ -152,3 +195,13 @@ def overall_sentiment(result: CodingResult) -> str:
         if value in sentiments:
             return value
     return "해당 없음"
+
+
+def validate_specific_topic(result: CodingResult, codes):
+    """명시적 가격 근거가 일반 만족도로 우회하는 알려진 오류를 차단한다."""
+    general = {c.id for c in codes if c.name.strip() in {
+        "전반적 만족도", "전반적 평가", "종합 만족도", "일반 평가"}}
+    price = r"가격|가성비|할인|정가|세일|금액|비싸|비싼|저렴|싸게|싼게|만원"
+    for issue in result.issues:
+        if issue.code_id in general and re.search(price, issue.evidence_text):
+            raise ValueError("가격·할인·지불 가치가 명시된 근거는 전반적 만족도로 배정하지 마세요. 가격 및 가성비 코드로 분류하거나 해당 코드가 없으면 누락 주제로 제안하세요.")

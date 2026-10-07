@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from src.ai import AIError, PROMPT_VERSION
 from src.corrections import apply_inheritance
-from src.models import Code, CodingResult, materialize_codes, normalized, validate_codes, validate_result
+from src.models import Code, CodingResult, materialize_codes, normalized, validate_ai_topic_overlap, validate_codes, validate_result, validate_specific_topic
 
 BATCH_SIZE = 50
 MAX_BATCH_CHARS = 20000
@@ -44,7 +44,7 @@ def generate_codebook(store, dataset_id, ai, context):
         except ValueError as exc:
             feedback = str(exc)
             if attempt == 2:
-                raise ValueError("분류 기준표 근거·중복 검증에 실패했습니다. 초안을 다시 생성해주세요.") from None
+                raise ValueError("분류 기준표의 근거·중복·감성 분리 검증에 실패했습니다. 초안을 다시 생성해주세요.") from None
     return store.save_codebook(dataset_id, codes, context, ai.model, [r["id"] for r in sample])
 
 
@@ -73,10 +73,10 @@ def confirm_codebook(store, draft_id, edited_rows):
         draft["sample_ids"], "confirmed", draft_id, [{"kind": "user_confirmation", "changed_concepts": changed}], constraints)
 
 
-def batches(records):
+def batches(records, max_records=BATCH_SIZE):
     batch, size = [], 0
     for row in records:
-        if batch and (len(batch) >= BATCH_SIZE or size + len(row["text"]) > MAX_BATCH_CHARS):
+        if batch and (len(batch) >= max_records or size + len(row["text"]) > MAX_BATCH_CHARS):
             yield batch
             batch, size = [], 0
         batch.append(row)
@@ -103,6 +103,30 @@ def execute_run(store, run_id, ai, progress=lambda *args: None):
         raise
 
 
+def missing_frequency_summary(candidates, total_responses):
+    """표현별 후보를 전수 집계한다. 의미가 같은 표현의 통합 판단은 AI에 맡긴다."""
+    meanings = {}
+    for candidate in candidates:
+        key = normalized(candidate["missing_code"])
+        entry = meanings.setdefault(key, {"meaning": candidate["missing_code"], "voc_ids": set()})
+        entry["voc_ids"].add(candidate["voc_id"])
+    return {"total_responses": total_responses, "meanings": [
+        {"meaning": entry["meaning"], "voc_ids": sorted(entry["voc_ids"]),
+         "response_count": len(entry["voc_ids"]),
+         "percent": 100 * len(entry["voc_ids"]) / total_responses if total_responses else 0}
+        for entry in meanings.values()]}
+
+
+def other_quality(results, codes, total):
+    """복수 기타 의견/코드도 원본 응답당 한 번만 집계한다."""
+    ids = {c.id for c in codes if c.category.strip().startswith("기타") or c.name.strip().startswith("기타")}
+    voc_ids = {row["voc_id"] for row in results if row["result"]
+               and any(i["code_id"] in ids for i in row["result"]["issues"])}
+    return ids, {"total_responses": total, "response_count": len(voc_ids),
+                 "percent": 100 * len(voc_ids) / total if total else 0,
+                 "target_below_percent": 10, "maximum_percent": 15}
+
+
 def _execute(store, run_id, ai, progress):
     dataset = store.dataset(store.run(run_id)["dataset_id"])
     records = dataset["records"]
@@ -120,7 +144,8 @@ def _execute(store, run_id, ai, progress):
         completed = len(records) - len(pending)
         phase = "보완된 기준표로 재분류 중" if run["round"] else "고객 의견 분류 중"
         progress(completed, len(records), phase)
-        for batch in batches(pending):
+        retrying = any(saved.get(row["id"], {}).get("status") == "failed" for row in pending)
+        for batch in batches(pending, max_records=10 if retrying else BATCH_SIZE):
             store.refresh_lease(run_id)
             progress(completed, len(records), f"{phase} · AI 응답 대기")
             feedback = {row["id"]: saved[row["id"]]["error"] for row in batch
@@ -138,6 +163,7 @@ def _execute(store, run_id, ai, progress):
                     if len(matches) != 1:
                         raise ValueError("VOC 결과가 누락되거나 중복됐습니다.")
                     validate_result(matches[0], record, book["codes"], run["context"])
+                    validate_specific_topic(matches[0], book["codes"])
                     store.save_result(run_id, run["round"], record["id"], matches[0])
                 except ValueError as exc:
                     store.save_result(run_id, run["round"], record["id"], error=str(exc))
@@ -151,6 +177,13 @@ def _execute(store, run_id, ai, progress):
             return
         candidates = [{"voc_id": row["voc_id"], **issue} for row in results
                       for issue in (row["result"]["issues"] if row["result"] else []) if issue["code_id"] is None]
+        missing = bool(candidates)
+        other_ids, quality = other_quality(results, book["codes"], len(records))
+        if quality["percent"] >= 10:
+            candidates.extend({"voc_id": row["voc_id"], **issue, "code_id": None,
+                               "missing_code": "기타에서 일반 주제로 재검토: " + issue["evidence_text"]}
+                              for row in results for issue in row["result"]["issues"]
+                              if issue["code_id"] in other_ids)
         unclear = any(row["status"] == "review" or row["result"]["response_type"] == "unclear" for row in results)
         if not candidates:
             store.update_status(run_id, "needs_review" if unclear else "completed",
@@ -158,18 +191,37 @@ def _execute(store, run_id, ai, progress):
             progress(len(records), len(records), "분류 처리 완료 · 검토 필요" if unclear else "분류 완료")
             return
         if run["round"] >= run["round_limit"]:
+            if not missing and not unclear and quality["percent"] <= 15:
+                store.update_status(run_id, "completed")
+                return
             store.update_status(run_id, "needs_review", "자동 보완 상한에 도달했습니다. 맞는 코드가 없는 의견을 검토하거나 보완을 이어서 실행해주세요.")
             return
         progress(len(records), len(records), "분류 기준표 보완 중 · AI 응답 대기")
         sources = ai_records([row for row in records if row["id"] in {c["voc_id"] for c in candidates}])
         # 후보도 소규모로 묶고 각 호출에 직전 추가까지 전달해 중복 생성을 줄인다.
         expanded = list(book["codes"])
+        frequency_summary = missing_frequency_summary(candidates, len(records))
+        frequency_summary["other_quality"] = quality
         for source_batch in batches(sources):
             store.refresh_lease(run_id)
             ids = {row["id"] for row in source_batch}
-            draft = ai.supplement(source_batch, expanded, run["context"],
-                [candidate for candidate in candidates if candidate["voc_id"] in ids], book["constraints"])
-            proposed = materialize_codes(draft, source_batch)
+            feedback = ""
+            for attempt in range(3):
+                store.refresh_lease(run_id)
+                options = {"frequency_summary": frequency_summary}
+                if feedback:
+                    options["feedback"] = feedback
+                supplement_codes = [c for c in expanded if c.id not in other_ids] if quality["percent"] >= 10 else expanded
+                draft = ai.supplement(source_batch, supplement_codes, run["context"],
+                    [candidate for candidate in candidates if candidate["voc_id"] in ids], book["constraints"], **options)
+                try:
+                    proposed = materialize_codes(draft, source_batch)
+                    validate_ai_topic_overlap(proposed, expanded)
+                    break
+                except ValueError as exc:
+                    feedback = str(exc)
+                    if attempt == 2:
+                        raise
             protected = {normalized(code["definition"]) for code in book["constraints"]}
             names = {(normalized(c.category), normalized(c.name)) for c in expanded}
             definitions = {normalized(c.definition) for c in expanded} | protected
@@ -181,6 +233,12 @@ def _execute(store, run_id, ai, progress):
                 definitions.add(normalized(code.definition))
         additions = expanded[len(book["codes"]):]
         if not additions:
+            if not missing and not unclear and quality["percent"] <= 15:
+                store.update_status(run_id, "completed")
+                return
+            if quality["percent"] > 15:
+                store.update_status(run_id, "needs_review", f"기타가 전체 응답의 {quality['percent']:.1f}%입니다. 반복 주제를 일반 분류로 보완해주세요.")
+                return
             store.update_status(run_id, "needs_review", "중복·사용자 변경 의도를 고려했을 때 추가할 코드를 확정하지 못했습니다. 미해결 의견을 확인해주세요.")
             return
         store.add_round(run_id, expanded, [{"kind": "ai_addition", "code": c.model_dump()} for c in additions])

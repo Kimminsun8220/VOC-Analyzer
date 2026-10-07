@@ -63,29 +63,36 @@ export default function(component) {
     root.append(summary, status);
     return;
   }
+  const metric = row => {
+    const value = make('span', 'result-bars-value');
+    value.append(make('span', 'result-percent', `${row.percent.toFixed(1)}%`),
+      make('span', 'result-count', ` (${row.count}건)`));
+    return value;
+  };
   if (data.variant === 'sentiment') {
-    const track = make('div', 'result-sentiment-track');
-    track.setAttribute('role', 'group'); track.setAttribute('aria-label', '감성 비중');
-    const legend = make('div', 'result-sentiment-legend');
+    const heading = make('div', 'result-mention-heading');
+    const title = make('span', '', '긍정·부정 언급률');
+    const help = button('언급률 집계 기준', 'result-mention-help', () => {});
+    help.textContent = 'ⓘ'; help.title = '전체 응답 기준입니다. 혼합 응답은 긍정과 부정에 각각 포함되므로 합계는 100%를 넘을 수 있습니다. 중립 등은 무응답·중립·미검토를 포함합니다.';
+    heading.append(title, help, make('span', 'result-mention-denominator', `전체 응답 ${data.denominator}건 기준`));
+    root.append(heading);
     for (const row of data.rows) {
-      const selected = data.selected === row.id, muted = Boolean(data.selected && !selected);
-      const label = `${row.label} · ${row.count}건 · ${row.percent.toFixed(1)}% 감성 필터 ${selected ? '해제' : '적용'}`;
-      const segment = button(label, 'result-sentiment-segment', () => send('filter', row.id));
-      segment.setAttribute('aria-pressed', String(selected));
-      segment.style.flexBasis = `${row.percent}%`; segment.style.backgroundColor = muted ? '#e2e8f0' : row.color;
-      segment.style.color = muted || row.id === '무응답/중립/미검토' ? '#0f172a' : 'white';
-      segment.title = `${row.label}\n응답 ${row.count}건 · 전체 ${data.denominator}건의 ${row.percent.toFixed(1)}%\n${selected ? '다시 누르면 전체 보기' : '이 감성으로 분류 그래프 보기'}`;
-      if (row.percent >= 8) segment.append(make('span', '', `${row.percent.toFixed(1)}%`));
-      track.append(segment);
-      const item = button(label, 'result-sentiment-legend-item', () => send('filter', row.id));
-      item.setAttribute('aria-pressed', String(selected)); item.classList.toggle('is-muted', muted);
-      const swatch = make('span', 'result-sentiment-swatch'); swatch.style.backgroundColor = row.color;
-      swatch.setAttribute('aria-hidden', 'true');
-      item.append(swatch, make('span', '', `${selected ? '✓ ' : ''}${row.label} ${row.percent.toFixed(1)}%`));
-      legend.append(item);
+      const neutral = !['긍정', '부정'].includes(row.id);
+      const selected = data.selected === row.id;
+      const label = neutral ? '중립 등' : `${row.label} 포함`;
+      const item = button(`${label} ${row.percent.toFixed(1)}% (${row.count}건) 필터 ${selected ? '해제' : '적용'}`,
+        neutral ? 'result-mention-neutral' : 'result-mention-row', () => send('filter', row.id));
+      item.setAttribute('aria-pressed', String(selected)); item.disabled = !row.count;
+      item.append(make('span', 'result-mention-label', label));
+      if (!neutral) {
+        const track = make('span', 'result-mention-track'); track.setAttribute('aria-hidden', 'true');
+        const fill = make('span', 'result-mention-fill');
+        fill.style.width = `${row.percent}%`; fill.style.backgroundColor = row.color;
+        track.append(fill); item.append(track);
+      }
+      item.append(metric(row)); root.append(item);
     }
-    root.append(legend, track, status);
-    return;
+    root.append(status); return;
   }
   const icon = (path) => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -157,7 +164,7 @@ export default function(component) {
     const track = make('span', 'result-bars-track'); track.setAttribute('aria-hidden', 'true');
     const bar = make('span', 'result-bars-bar'); bar.style.width = `${data.maximum ? row.value / data.maximum * 100 : 0}%`;
     track.append(bar);
-    control.append(label, make('span', 'result-bars-value', `${row.count}건 · ${row.percent.toFixed(1)}%`), track);
+    control.append(label, metric(row), track);
     const more = button(`합칠 분류 선택: ${row.label}`, 'result-bars-more', () => openMenu(row, more, item));
     more.append(icon('M12 5h.01M12 12h.01M12 19h.01'));
     more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false');

@@ -171,18 +171,18 @@ def test_merged_leaf_popup_counts_mixed_voc_once_without_tables(completed, monke
 def test_main_sentiment_bar_stays_global_and_whole_popup_has_no_visuals(completed, monkeypatch):
     app, _ = open_results(completed, monkeypatch)
     assert len(app.get("plotly_chart")) == 0 and not app.dataframe
-    assert [row["count"] for row in sentiment_data(app)["rows"]] == [1, 2, 1, 1]
+    assert [row["count"] for row in sentiment_data(app)["rows"]] == [2, 3, 1]
     assert not any(box.label in {"분류·감성 비중", "감성 비중"} for box in app.expander)
     table_event(app, "filter", column="VOC 원문", values=None, search="빠름")
     assert len(response_table(app)) == 2
-    assert [row["count"] for row in sentiment_data(app)["rows"]] == [1, 2, 1, 1]
+    assert [row["count"] for row in sentiment_data(app)["rows"]] == [2, 3, 1]
     assert sentiment_data(app)["denominator"] == 5
     chart_event(app, "code", "merge", ["speed"], ["wrong"])
     next(button for button in app.button if button.label == "전체 원문 보기").click().run()
     assert len(app.get("plotly_chart")) == 0
-    assert [row["count"] for row in sentiment_data(app)["rows"]] == [1, 2, 1, 1]
+    assert [row["count"] for row in sentiment_data(app)["rows"]] == [2, 3, 1]
     assert not any(box.label in {"분류·감성 비중", "감성 비중"} for box in app.expander)
     table_event(app, "filter", column="VOC 원문", values=None, search="없음")
     assert len(response_table(app)) == 1
-    assert [row["count"] for row in sentiment_data(app)["rows"]] == [1, 2, 1, 1]
+    assert [row["count"] for row in sentiment_data(app)["rows"]] == [2, 3, 1]
     assert len(app.get("plotly_chart")) == 0 and not app.dataframe

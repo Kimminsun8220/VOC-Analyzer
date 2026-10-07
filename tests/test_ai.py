@@ -39,6 +39,54 @@ def test_authentication_failure_is_not_retried_or_echoed(monkeypatch):
     assert len(calls) == 1
 
 
+def test_prepaid_credit_error_identifies_billing_and_is_not_retried():
+    calls = []
+    def fail(**kwargs):
+        calls.append(kwargs)
+        raise errors.APIError(402, {"error": {"message": "private-key and billing-details", "code": 402}})
+    service = ai.GeminiAI.__new__(ai.GeminiAI)
+    service.model = "test-model"
+    service.client = SimpleNamespace(models=SimpleNamespace(generate_content=fail))
+    with pytest.raises(ai.AIError) as error:
+        service.generate("codebook", {}, CodebookDraft)
+    assert "선불 크레딧" in str(error.value) and "402" in str(error.value)
+    assert "서비스 오류" not in str(error.value)
+    assert "private-key" not in str(error.value) and not error.value.retryable
+    assert len(calls) == 1
+
+
+def test_codebook_page_shows_payment_error_without_saving_a_draft(monkeypatch):
+    from pathlib import Path
+    import pandas as pd
+    from streamlit.testing.v1 import AppTest
+    from src import config
+    from src.ingestion import prepare_preview
+    from src.storage import Store
+
+    store = Store()
+    frame = pd.DataFrame({'VOC': ['배송이 빠릅니다']})
+    dataset = store.save_dataset('billing-test', prepare_preview(frame, 'VOC'), frame, 'VOC', 'test', '')
+    requests = []
+    original_ai = ai.GeminiAI
+    def fail(**kwargs):
+        requests.append(kwargs)
+        raise errors.APIError(402, {'error': {'code': 402, 'message': 'private-key'}})
+    def service(key, model):
+        instance = original_ai.__new__(original_ai)
+        instance.model = model
+        instance.client = SimpleNamespace(models=SimpleNamespace(generate_content=fail), close=lambda: None)
+        return instance
+    monkeypatch.setattr(config, 'load_gemini_key', lambda: 'fake-key')
+    monkeypatch.setattr(ai, 'GeminiAI', service)
+    page = AppTest.from_file(Path(__file__).resolve().parents[1] / 'app.py').run()
+    page.radio(key='nav').set_value('2. 분류 기준표').run()
+    page.button(key='generate_codebook').click().run()
+    assert not page.exception
+    assert any('선불 크레딧' in e.value and '402' in e.value for e in page.error)
+    assert not any('서비스 오류' in e.value or 'private-key' in e.value for e in page.error)
+    assert len(requests) == 1 and store.list_codebooks(dataset) == []
+
+
 def test_code_definition_generation_uses_names_sources_and_strict_schema():
     calls = []
 

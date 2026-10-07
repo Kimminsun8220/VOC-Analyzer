@@ -9,7 +9,7 @@ from src.ai import AIError, PROMPT_VERSION
 from src.corrections import apply_inheritance
 from src.models import Code, CodingResult, materialize_codes, normalized, validate_codes, validate_result
 
-BATCH_SIZE = 10
+BATCH_SIZE = 50
 MAX_BATCH_CHARS = 20000
 MAX_SAMPLE_CHARS = 60000
 

@@ -179,6 +179,33 @@ def test_failure_resume_only_retries_invalid_rows():
     assert len(good.calls) == 1
 
 
+def test_fifty_record_batches_preserve_saved_rows_after_interruption():
+    store = Store()
+    run_id = setup_run(store, ["빠름"] * 101)
+    def interrupt(records, codes, context):
+        if records[0]['id'] == 'V0051':
+            raise AIError('test interruption')
+        return CodingBatch(results=[opinion(r['id']) for r in records])
+    first = FakeAI(interrupt)
+    execute_run(store, run_id, first)
+    assert [len(rows) for rows in first.calls] == [50, 50]
+    assert len(store.results(run_id)) == 50
+    resumed = FakeAI()
+    execute_run(Store(store.path), run_id, resumed)
+    assert [len(rows) for rows in resumed.calls] == [50, 1]
+    assert resumed.calls[0][0]['id'] == 'V0051'
+    assert len(store.results(run_id)) == 101
+    assert store.run(run_id)['status'] == 'completed'
+
+
+def test_long_records_split_before_fifty_without_truncation():
+    from src.workflow import batches
+    records = [{'id':str(i), 'text':'가' * 5000} for i in range(9)]
+    grouped = list(batches(records))
+    assert [len(rows) for rows in grouped] == [4, 4, 1]
+    assert [row for rows in grouped for row in rows] == records
+
+
 def test_api_failure_does_not_become_no_content():
     store = Store()
     run_id = setup_run(store, ["빠름"])

@@ -17,6 +17,7 @@ from src.corrections import inheritance_source
 from src.dataset_ui import clear_deleted_dataset_state, show_dataset_picker
 from src.grouping_ui import show_grouped_results
 from src.ingestion import excel_sheet_names, prepare_preview, read_csv, read_excel, read_pasted_text
+from src.manual_ui import show_manual
 from src.results import STATUS_LABELS, result_tables
 from src.storage import RunBusyError, Store
 from src.run_ui import request_run, show_run_controls
@@ -237,6 +238,11 @@ def main():
                       "3. 분류 결과": ":material/bar_chart: 03 분류 결과"}
         page = st.radio("분석 단계", list(nav_labels), key="nav",
             format_func=nav_labels.get, label_visibility="collapsed")
+        with st.container(key="manual_sidebar"):
+            open_manual = st.button("매뉴얼 보기", icon=":material/menu_book:",
+                                    width="stretch", key="open_manual")
+    if open_manual:
+        show_manual()
     if not datasets:
         st.session_state.pop("dataset_id", None)
     try:

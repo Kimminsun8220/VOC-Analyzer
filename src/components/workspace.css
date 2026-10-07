@@ -150,3 +150,59 @@
 .st-key-voc_text [data-baseweb="textarea"]:focus-within { border-color: var(--voc-primary); box-shadow: 0 0 0 1px var(--voc-primary); }
 .criteria-table th { font-size: 14px; }
 .criteria-table td { padding-top: 10px !important; padding-bottom: 10px !important; }
+
+/* Keep help available below the three workflow pages without covering navigation. */
+[data-testid="stSidebarUserContent"] > div > [data-testid="stVerticalBlock"] { min-height: calc(100dvh - 80px); }
+.st-key-manual_sidebar { margin-top: auto; padding-top: 24px; flex-shrink: 0; }
+.st-key-manual_sidebar button {
+  min-height: 44px;
+  justify-content: flex-start;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--voc-muted);
+}
+.st-key-manual_sidebar button:hover {
+  background: #e3e8ed;
+  border-color: transparent;
+  color: var(--voc-text);
+}
+.st-key-manual_sidebar button:focus-visible {
+  outline: 2px solid var(--voc-primary);
+  outline-offset: 2px;
+}
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-manual_viewer) { width: min(1180px, calc(100vw - 32px)); max-width: none; }
+
+[data-testid="stSidebar"] [data-testid="stLayoutWrapper"]:has(> .st-key-manual_sidebar) { margin-top: auto; flex-shrink: 0; }
+
+/* Fit the preview to the viewport; only the pages scroll. */
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-manual_viewer) {
+  margin-block: 0;
+  max-height: calc(100dvh - 32px);
+}
+.manual-pages {
+  height: min(620px, calc(100dvh - 250px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  background: var(--voc-bg);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  scroll-snap-type: y proximity;
+}
+.manual-pages img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(596px, calc(100dvh - 274px));
+  object-fit: contain;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+.manual-pages:focus-visible { outline: 2px solid var(--voc-primary); outline-offset: 2px; }

@@ -118,8 +118,11 @@ def _execute(store, run_id, ai, progress):
                     voc_id=row["id"], response_type="no_content", no_content_reason="빈 본문(무응답)"))
         pending = [row for row in pending if row["text"].strip()]
         completed = len(records) - len(pending)
-        progress(completed, len(records), f"분류 기준표 v{book['version']} · 고객 의견 자동 분류")
+        phase = "보완된 기준표로 재분류 중" if run["round"] else "고객 의견 분류 중"
+        progress(completed, len(records), phase)
         for batch in batches(pending):
+            store.refresh_lease(run_id)
+            progress(completed, len(records), f"{phase} · AI 응답 대기")
             feedback = {row["id"]: saved[row["id"]]["error"] for row in batch
                         if row["id"] in saved and saved[row["id"]]["error"]}
             if feedback:
@@ -138,8 +141,9 @@ def _execute(store, run_id, ai, progress):
                     store.save_result(run_id, run["round"], record["id"], matches[0])
                 except ValueError as exc:
                     store.save_result(run_id, run["round"], record["id"], error=str(exc))
-                completed += 1
-            progress(completed, len(records), f"분류 기준표 v{book['version']} · 고객 의견 자동 분류")
+                else:
+                    completed += 1
+                progress(completed, len(records), "분류 결과 저장 중")
         apply_inheritance(store, run_id)
         results = store.effective_results(run_id)
         if any(row["status"] == "failed" for row in results) or len(results) != len(records):
@@ -151,11 +155,12 @@ def _execute(store, run_id, ai, progress):
         if not candidates:
             store.update_status(run_id, "needs_review" if unclear else "completed",
                 "미해결 분류·수정값 승계 검토가 남아 있습니다. 개별 수정·승계 검토 탭에서 확인해주세요." if unclear else "")
+            progress(len(records), len(records), "분류 처리 완료 · 검토 필요" if unclear else "분류 완료")
             return
         if run["round"] >= run["round_limit"]:
             store.update_status(run_id, "needs_review", "자동 보완 상한에 도달했습니다. 맞는 코드가 없는 의견을 검토하거나 보완을 이어서 실행해주세요.")
             return
-        progress(len(records), len(records), "누락 의미 비교 · 분류 기준표 자동 보완")
+        progress(len(records), len(records), "분류 기준표 보완 중 · AI 응답 대기")
         sources = ai_records([row for row in records if row["id"] in {c["voc_id"] for c in candidates}])
         # 후보도 소규모로 묶고 각 호출에 직전 추가까지 전달해 중복 생성을 줄인다.
         expanded = list(book["codes"])

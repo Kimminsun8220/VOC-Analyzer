@@ -18,7 +18,8 @@ from src.dataset_ui import clear_deleted_dataset_state, show_dataset_picker
 from src.grouping_ui import show_grouped_results
 from src.ingestion import excel_sheet_names, prepare_preview, read_csv, read_excel, read_pasted_text
 from src.results import STATUS_LABELS, result_tables
-from src.storage import Store
+from src.storage import RunBusyError, Store
+from src.run_ui import request_run, show_run_controls
 from src.workspace_ui import apply_workspace_theme
 from src.workflow import execute_run, generate_codebook
 
@@ -157,19 +158,35 @@ def codebook_screen(store, dataset):
             unsaved = bool(editing and table_has_changes(book, editing))
             if unsaved:
                 st.caption("분류 기준표를 먼저 저장해주세요.")
-            if actions.button("이 기준표로 VOC 분류하기", key="start_classification", type="primary", disabled=context.strip() != book["context"] or unsaved):
+            requested = st.session_state.pop("classification_requested", None) == selected
+            busy = store.active_run() is not None
+            actions.button("이 기준표로 VOC 분류하기", key="start_classification", type="primary",
+                disabled=context.strip() != book["context"] or unsaved or busy or requested,
+                on_click=request_run, args=("classification_requested", selected))
+            error_key = f"run_action_error_{selected}"
+            if error_key in st.session_state:
+                st.error(st.session_state[error_key])
+            if requested and not busy and not unsaved and context.strip() == book["context"]:
                 def start(ai):
                     identifier = store.create_run(dataset["id"], selected, ai.model, PROMPT_VERSION, parent_run_id=parent_id)
                     st.session_state.run_id = identifier
                     run_with_progress(store, identifier, ai)
-                with_ai(start)
+                try:
+                    with_ai(start)
+                except RunBusyError:
+                    st.rerun()
+                except (ValueError, sqlite3.Error, OSError) as exc:
+                    st.session_state[error_key] = str(exc) if isinstance(exc, ValueError) else "실행하지 못했습니다. 저장소를 확인해주세요."
+                    st.rerun()
                 st.session_state.page = "3. 분류 결과"
                 st.rerun()
 
 
-def run_with_progress(store, identifier, ai):
-    bar = st.progress(0, text="분류 결과를 만들고 있습니다…")
-    execute_run(store, identifier, ai, lambda count, total, message: bar.progress(count / max(total, 1), text=f"{message} · {count}/{total}건"))
+def run_with_progress(store, identifier, ai, bar=None):
+    if bar is None:
+        bar = st.progress(0, text="분류를 시작하고 있습니다…")
+    execute_run(store, identifier, ai, lambda count, total, message: bar.progress(
+        min(count / max(total, 1), 1.0), text=f"{message} · {count}/{total}건 · {count / max(total, 1):.0%}"))
 
 
 def results_screen(store, dataset, tools_container=None):
@@ -198,14 +215,7 @@ def results_screen(store, dataset, tools_container=None):
     summary.caption(f"전체 응답 {len(originals)}건 · 분류 기준표 {book_name}v{book['version']}",
         help=f"내용 없는 응답 {empty_count}건 포함")
     if run["status"] != "completed":
-        st.warning(f"{STATUS_LABELS[run['status']]} · {run['error'] or '저장된 지점부터 이어서 처리할 수 있습니다.'}")
-        if st.button("보완 이어서 실행 (최대 2회 추가)" if run["status"] == "needs_review" else "실패·미처리 이어서 실행", key="resume_run"):
-            def resume(ai):
-                if run["status"] == "needs_review":
-                    store.extend_limit(selected)
-                run_with_progress(store, selected, ai)
-            with_ai(resume, run["model"])
-            st.rerun()
+        show_run_controls(store, selected, with_ai, run_with_progress)
     show_grouped_results(store, run, book, originals, issues, dataset, tools_container=tools_container)
 
 

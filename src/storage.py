@@ -17,6 +17,10 @@ def dump(value):
     return json.dumps(value, ensure_ascii=False)
 
 
+class RunBusyError(ValueError):
+    """A live classification owns the existing execution lock."""
+
+
 class Store:
     def __init__(self, path=None):
         self.path = Path(path or DB_PATH)
@@ -259,8 +263,14 @@ class Store:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             if db.execute("SELECT 1 FROM runs WHERE lease_until>?", (time.time(),)).fetchone():
-                raise ValueError("분류가 이미 진행 중입니다. 중단된 실행은 최대 6분 후 이어서 처리할 수 있습니다.")
+                raise RunBusyError("분류가 이미 진행 중입니다. 중단된 실행은 최대 6분 후 이어서 처리할 수 있습니다.")
             db.execute("UPDATE runs SET status='running',error='',lease_until=? WHERE id=?", (time.time() + 360, identifier))
+
+    def active_run(self):
+        with self.connect() as db:
+            row = db.execute("SELECT id,dataset_id,lease_until FROM runs WHERE lease_until>? "
+                             "ORDER BY lease_until DESC LIMIT 1", (time.time(),)).fetchone()
+        return dict(row) if row else None
 
     def update_status(self, identifier, status, error=""):
         with self.connect() as db:

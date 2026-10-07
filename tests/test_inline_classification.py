@@ -111,3 +111,31 @@ def test_edit_leaving_classification_filter_removes_only_that_response(completed
     app.button(key=prefix + "_reset").click().run()
     assert len(response_table(app)) == 5
     assert response_table(app).set_index("VOC ID").loc["V0002", "분류"] == "[제품] 품질"
+
+
+def test_leaf_classification_edit_preserves_hidden_opinions(completed, monkeypatch):
+    from result_chart_helpers import chart_event
+    store, run_id, _ = completed
+    before = deepcopy(store.results(run_id))
+    app, prefix = open_results(completed, monkeypatch)
+    chart_event(app, "code", "open", ["wrong"])
+    data = table_spec(app)
+    row = next(row for row in data["rows"] if row["id"] == "V0001")
+    assert row["sentiment_indices"] == [1]
+    with pytest.raises(ValueError, match="현재 선택한 분류"):
+        table_action(data, {"kind": "classify", "signature": data["signature"],
+            "id": "V0001", "code_ids": ["quality", "wrong"]})
+    table_event(app, "classify", id="V0001", code_ids=["speed", "quality"])
+    changed = store.corrections(run_id)["V0001"]["result"]["issues"]
+    assert changed[0] == before[0]["result"]["issues"][0]
+    assert changed[1]["code_id"] == "quality"
+    assert "V0001" not in response_table(app)["VOC ID"].tolist()
+    assert store.results(run_id) == before
+
+
+def test_edit_scope_matches_sentiment_filters(completed):
+    store, run_id, codes = completed
+    for filters in ({"감성": {"values": ["긍정"]}}, {"_response_sentiment": "긍정"}):
+        data = classification_edit_data(store, store.run(run_id), codes, ["speed", "wrong"], filters)
+        assert data["sentiment_indices"]["V0001"] == [0]
+        assert len(data["rows"]["V0001"]) == 2

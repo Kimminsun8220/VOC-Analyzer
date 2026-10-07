@@ -60,6 +60,9 @@
 .st-key-result_display_controls [data-testid="stCaptionContainer"] p { white-space: nowrap; color: var(--voc-muted); }
 .st-key-result_analysis h3 { font-size: 21px; font-weight: 650; padding: 0; }
 .st-key-result_category_heading, .st-key-result_code_heading { min-height: 64px; gap: 4px !important; }
+/* Streamlit offsets heading padding with a negative margin; these compact titles have no padding. */
+.st-key-result_category_heading [data-testid="stHeading"] [data-testid="stMarkdownContainer"],
+.st-key-result_code_heading [data-testid="stHeading"] [data-testid="stMarkdownContainer"] { margin-bottom: 0; }
 .st-key-result_actions { border-top: 1px solid var(--voc-border); background: white; padding: 16px 0 0; margin-top: 12px; }
 @media (max-width: 1100px) {
   .st-key-result_header { gap: 12px !important; }

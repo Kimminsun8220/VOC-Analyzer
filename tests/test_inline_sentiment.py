@@ -133,7 +133,7 @@ def test_scope_includes_all_matching_opinions_and_keeps_classification_editing(c
     assert leaf["sentiment_indices"]["V0001"] == [0]
     assert leaf["sentiment_indices"]["V0004"] == [0, 1]  # 같은 세부분류의 복수 의견
     assert leaf["sentiment_indices"]["V0002"] == []
-    assert len(leaf["rows"]["V0001"]) == 2  # 분류 편집은 전체 의견을 유지한다.
+    assert len(leaf["rows"]["V0001"]) == 2  # 저장 시 숨긴 의견을 보존하기 위해 전체 원본은 유지한다.
     for selected in (None, ["speed", "wrong"]):  # 전체·대분류·합친 세부분류
         data = classification_edit_data(store, run, codes, selected)
         assert data["sentiment_indices"]["V0001"] == [0, 1]

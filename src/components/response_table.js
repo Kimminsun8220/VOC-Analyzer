@@ -68,7 +68,7 @@ export default function({data, parentElement, setTriggerValue}) {
       {id: row.id, [sentiment ? 'sentiments' : 'code_ids']: draft}), 'response-filter-apply');
     save.disabled = true;
     const selects = [];
-    const indices = sentiment ? row.sentiment_indices : row.opinions.map((_, index) => index);
+    const indices = row.sentiment_indices;
     indices.forEach((index, position) => {
       const item = row.opinions[index];
       const label = make('label', 'response-opinion-label');
@@ -186,12 +186,19 @@ export default function({data, parentElement, setTriggerValue}) {
       const content = make('span', column.key === '응답 상태' ? 'response-state' : 'response-cell-text', text);
       content.title = row[column.key]; cell.append(content); tr.append(cell);
       if (['분류', '감성'].includes(column.key) && row.opinions?.length
-          && (column.key !== '감성' || row.sentiment_indices?.length)) {
+          && row.sentiment_indices?.length) {
         const field = column.key === '감성' ? 'sentiment' : 'code_id';
         cell.classList.add('response-editable-cell'); cell.tabIndex = 0;
         cell.setAttribute('aria-label', `${column.key} 수정: ${row['VOC 원문']}`);
         cell.setAttribute('aria-haspopup', 'dialog'); cell.setAttribute('aria-expanded', 'false');
         cell.title = `더블클릭 또는 Enter로 ${column.key} 수정`;
+        const edit = button('', event => {
+          event.stopPropagation(); openOpinionEditor(row, cell, field);
+        }, 'response-edit-toggle');
+        edit.setAttribute('aria-label', `${column.key} 수정 열기`);
+        edit.title = `${column.key} 수정`;
+        edit.append(make('span', 'response-edit-chevron'));
+        cell.append(edit);
         // 첫 클릭에서 행 선택·재실행하면 두 번째 클릭이 다른 DOM에 도착한다.
         cell.onclick = event => event.stopPropagation();
         cell.ondblclick = event => { event.stopPropagation(); openOpinionEditor(row, cell, field); };

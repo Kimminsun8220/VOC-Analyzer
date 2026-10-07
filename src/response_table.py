@@ -12,9 +12,10 @@ from src.corrections import save_correction
 from src.grouping import SENTIMENTS
 
 
-def classification_edit_data(store, run, codes, selected_ids=None):
-    """필터가 숨긴 의견도 포함해 편집하며 검토 중인 변경은 확정하지 않는다."""
-    choices = [{"value": code.id, "label": f"[{code.category}] {code.name}"} for code in codes]
+def classification_edit_data(store, run, codes, selected_ids=None, filters=None):
+    """저장용 전체 의견은 보존하고 편집 대상은 현재 표의 의견 범위로 제한한다."""
+    choices = [{"value": code.id, "label": f"[{code.category}] {code.name}"}
+               for code in sorted(codes, key=lambda code: code.category)]
     rows = {}
     if run["status"] in {"completed", "needs_review"} and run["lease_until"] <= time.time():
         allowed = {code.id for code in codes}
@@ -24,8 +25,13 @@ def classification_edit_data(store, run, codes, selected_ids=None):
                     and result["issues"] and all(item["code_id"] in allowed for item in result["issues"])):
                 rows[row["voc_id"]] = [{key: item[key] for key in ("code_id", "evidence_text", "sentiment")}
                                        for item in result["issues"]]
+    filters = filters or {}
+    sentiments = filters.get("감성", {}).get("values")
+    response_sentiment = filters.get("_response_sentiment")
     sentiment_indices = {voc_id: [index for index, item in enumerate(opinions)
-        if selected_ids is None or item["code_id"] in selected_ids]
+        if (selected_ids is None or item["code_id"] in selected_ids)
+        and (sentiments is None or item["sentiment"] in sentiments)
+        and (response_sentiment not in ("긍정", "부정") or item["sentiment"] == response_sentiment)]
         for voc_id, opinions in rows.items()}
     return {"options": choices, "rows": rows, "sentiment_indices": sentiment_indices}
 
@@ -66,10 +72,10 @@ def table_action(data, action):
                 or any(not isinstance(value, str) or value not in allowed for value in values)):
             raise ValueError("각 의견의 분류를 현재 기준표에서 선택해주세요." if kind == "classify"
                              else "각 의견의 감성을 목록에서 선택해주세요.")
-        if kind == "sentiment" and any(value != item["sentiment"]
+        if any(value != item[field]
                 for index, (item, value) in enumerate(zip(row["opinions"], values, strict=True))
                 if index not in row["sentiment_indices"]):
-            raise ValueError("현재 선택한 분류의 감성만 수정할 수 있습니다.")
+            raise ValueError("현재 선택한 분류·감성 조건의 의견만 수정할 수 있습니다.")
         if values == [item[field] for item in row["opinions"]]:
             raise ValueError("변경한 분류가 없습니다." if kind == "classify" else "변경한 감성이 없습니다.")
         return kind, (row["id"], values)
@@ -129,7 +135,7 @@ def show_response_table(view, options, filters, store, run, prefix, selected_ids
         st.session_state.pop(editing_key, None)
     data = table_data(view, options, filters, st.session_state.get(selected_key),
         [selected_ids, run["result_revision"], st.session_state.get(prefix + "_table_epoch", 0)],
-        classification_edit_data(store, run, codes, selected_ids))
+        classification_edit_data(store, run, codes, selected_ids, filters))
     assets = Path(__file__).parent / "components"
     renderer = st.components.v2.component("response_table", html='<div class="response-table"></div>',
         css=(assets / "response_table.css").read_text(encoding="utf-8"),

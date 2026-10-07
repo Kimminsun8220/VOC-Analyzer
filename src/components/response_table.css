@@ -43,6 +43,10 @@
 .response-filter-actions .response-filter-apply { color: white; background: #1e40af; border-color: #1e40af; }
 .response-filter-actions button:disabled { opacity: .45; cursor: default; }
 .response-editable-cell:hover, .response-editable-cell.is-editing { background: #e6edfc; box-shadow: inset 0 0 0 1px #93b4ee; }
+.response-table td.response-editable-cell { position: relative; padding-right: 34px; }
+.response-edit-toggle { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 4px; background: transparent; color: #9aa5b1; }
+.response-edit-toggle:hover, .response-edit-toggle:focus-visible { color: #526575; background: #e8edf2; }
+.response-edit-chevron { width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); pointer-events: none; }
 .response-inline-editor { width: 420px; }
 .response-opinion-label { display: flex; flex-direction: column; gap: 6px; }
 .response-opinion-evidence { color: #475569; font-size: 13px; overflow-wrap: anywhere; white-space: pre-wrap; }

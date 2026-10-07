@@ -159,7 +159,7 @@ def delete_codebook(store, dataset_id, identifier):
     if st.session_state.get(EDIT_KEY) == identifier:
         st.session_state.pop(EDIT_KEY, None)
     st.session_state.pop("codebook_manage_error", None)
-    st.session_state.codebook_manage_notice = "기준표를 삭제했습니다. 기존 분류 결과는 유지됩니다."
+    st.session_state.pop("codebook_manage_notice", None)
 
 
 def icon_button(label, icon, action, args, key, *, disabled=False, help=None, submit=False):

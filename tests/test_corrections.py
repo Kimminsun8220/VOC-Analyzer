@@ -32,6 +32,8 @@ def result(issues=None):
 
 
 class AI:
+    from tests.test_workflow import FakeAI
+    review_codebook = FakeAI.review_codebook
     model = "test-model"
 
     def __init__(self, first=None):

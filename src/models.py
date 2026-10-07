@@ -35,6 +35,40 @@ class CodebookDraft(Contract):
     codes: list[DraftCode]
 
 
+QUALITY_CHECKS = (
+    "abstraction", "perspective", "hierarchy", "overlap",
+    "granularity", "boundaries", "other_topics", "grounding",
+)
+
+
+class QualityCheck(Contract):
+    criterion: Literal["abstraction", "perspective", "hierarchy", "overlap",
+                       "granularity", "boundaries", "other_topics", "grounding"]
+    finding: str = Field(min_length=1)
+    resolution: str = Field(min_length=1)
+
+
+class CodeReviewDecision(Contract):
+    draft_code_index: int = Field(ge=0, description="Index of a CODE in draft.codes, never a VOC/record index")
+    target_names: list[str]
+    reason: str = Field(min_length=1)
+
+
+class CodebookReview(Contract):
+    """AI 검토 응답용 계약. 저장 Code/Issue 구조에는 필드를 추가하지 않는다."""
+    codes: list[DraftCode]
+    checks: list[QualityCheck] = Field(min_length=8, max_length=8)
+    decisions: list[CodeReviewDecision]
+
+    @model_validator(mode="after")
+    def all_checks_present(self):
+        if {item.criterion for item in self.checks} != set(QUALITY_CHECKS):
+            raise ValueError("코드북 품질 검토 8개 항목을 빠짐없이 한 번씩 확인해주세요.")
+        if any(not item.finding.strip() or not item.resolution.strip() for item in self.checks):
+            raise ValueError("품질 검토의 판단 근거와 처리 내용을 입력해주세요.")
+        return self
+
+
 class CodeDefinition(Contract):
     target_index: int = Field(ge=0)
     definition: str = Field(min_length=1, max_length=1500)
@@ -109,7 +143,7 @@ def validate_codes(codes: list[Code]) -> None:
 
 def validate_ai_code(item: DraftCode) -> None:
     """AI 초안의 명시적인 감성 분류를 차단한다. 사용자 직접 편집에는 강제하지 않는다."""
-    polarity_label = r"(?:^|[\s(/·:_-])(?:긍정|부정|중립)(?:적(?:인)?)?(?:\s*(?:평가|의견|반응))?\s*\)?$"
+    polarity_label = r"(?:^|[\s(/·:_-])(?:긍정|부정|중립|혼합)(?:적(?:인)?)?(?=$|[\s)/·:_-]|평가|의견|반응)"
     if any(re.search(polarity_label, value.strip()) for value in (item.category, item.name)):
         raise ValueError("분류명에 감성을 붙이지 마세요. 같은 주제의 긍정·부정은 하나의 주제명과 일반 판정 기준으로 통합해주세요.")
     polarized = set(re.findall(r"(긍정|부정)(?:적(?:인)?)?\s*(?:평가|의견|반응)", item.definition))
@@ -131,13 +165,22 @@ def validate_ai_topic_overlap(proposed, existing=()) -> None:
     existing_count = len(seen)
     for code in proposed:
         topics = ai_name_topics(code.name)
+        name_key = re.sub(r"[\s\W_]+", "", normalized(code.name))
+        category_key = re.sub(r"[\s\W_]+", "", normalized(code.category))
+        if name_key == category_key and name_key != "기타":
+            raise ValueError(f"대분류와 세부분류가 같은 이름입니다: '{code.category}' / '{code.name}'. 상하위의 범위와 이름을 구분해주세요.")
         for index, (other, other_topics) in enumerate(seen):
+            other_key = re.sub(r"[\s\W_]+", "", normalized(other.name))
+            if name_key == other_key and normalized(code.category) != normalized(other.category):
+                raise ValueError(f"세부분류 '{code.name}'가 여러 대분류에 중복됩니다. 대상을 명확히 하거나 적절한 상위 분류로 통합해주세요.")
             if normalized(code.category) != normalized(other.category):
                 continue
             # 보완의 완전 중복 제안은 기존 중복 제거 경로에서 처리한다.
             if index < existing_count and normalized(code.name) == normalized(other.name):
                 continue
             overlap = topics & other_topics
+            if name_key == other_key:
+                overlap = overlap or {code.name}
             if overlap:
                 common = ", ".join(sorted(overlap))
                 raise ValueError(
@@ -154,7 +197,9 @@ def materialize_codes(draft: CodebookDraft, records: list[dict], existing: list[
         validate_ai_code(item)
         for source in item.evidence:
             if source.voc_id not in originals or source.quote not in originals[source.voc_id]:
-                raise ValueError(f"분류 기준표 근거가 원문과 일치하지 않습니다: {source.voc_id}. 이 ID의 원문을 그대로 인용해주세요.")
+                raise ValueError(f"분류 기준표 근거가 원문과 일치하지 않습니다: {source.voc_id}, 인용={source.quote!r}. "
+                                 "문장 중간을 생략하거나 연결하지 말고 이 ID 원문의 짧은 연속 구간을 그대로 인용해주세요. "
+                                 f"정확한 원문: {originals.get(source.voc_id, '존재하지 않는 ID')!r}")
         codes.append(Code(id="C" + uuid4().hex[:12], **item.model_dump()))
     validate_codes(codes)
     validate_ai_topic_overlap(draft.codes, existing or [])

@@ -81,6 +81,8 @@ def test_offline_runner_flow_remaps_scores_and_exports_without_production_db(tmp
     monkeypatch.setattr(runner,'OUT',tmp_path)
     contexts=[]
     class FakeAI:
+        from tests.test_workflow import FakeAI as BaseAI
+        review_codebook = BaseAI.review_codebook
         model='fake'
         def codebook(self,records,context):
             contexts.append(context)

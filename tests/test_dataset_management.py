@@ -143,7 +143,7 @@ def test_ui_picker_is_hidden_on_input_and_selects_analysis_from_page_top(monkeyp
     assert "저장된 입력 자료" not in [item.value for item in app.markdown]
     app.radio(key="nav").set_value(page).run()
     assert app.main.header[0].value == title
-    assert not app.sidebar.button
+    assert all(button.key == "open_manual" for button in app.sidebar.button)
     assert any((button.key or "").startswith("dataset_select_") for button in app.main.button)
     nodes = list(app.main)
     picker_position = next(i for i, node in enumerate(nodes) if getattr(node, "key", None) == f"dataset_select_{target}")

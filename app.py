@@ -22,7 +22,7 @@ from src.results import STATUS_LABELS, result_tables
 from src.storage import RunBusyError, Store
 from src.run_ui import request_run, show_run_controls
 from src.workspace_ui import apply_workspace_theme
-from src.workflow import execute_run, generate_codebook
+from src.workflow import execute_run, generate_codebook, other_quality, other_review_notice
 
 CODE_COLUMNS = {"id": "코드 ID", "category": "대분류", "name": "세부분류", "definition": "분류 기준"}
 
@@ -217,6 +217,11 @@ def results_screen(store, dataset, tools_container=None):
         help=f"내용 없는 응답 {empty_count}건 포함")
     if run["status"] != "completed":
         show_run_controls(store, selected, with_ai, run_with_progress)
+    else:
+        _, quality = other_quality(store.effective_results(selected), book["codes"], len(originals))
+        notice = other_review_notice(quality)
+        if notice:
+            st.caption(notice)
     show_grouped_results(store, run, book, originals, issues, dataset, tools_container=tools_container)
 
 

@@ -59,6 +59,12 @@ class FakeAI:
             "evidence": [{"voc_id": records[0]["id"], "quote": records[0]["text"]}],
         }])
 
+    def review_codebook(self, records, context, draft, **kwargs):
+        from src.models import CodebookReview, QUALITY_CHECKS
+        return CodebookReview(codes=draft.codes, decisions=[
+            {"draft_code_index": i, "target_names": [code.name], "reason": "유지"} for i, code in enumerate(draft.codes)], checks=[
+            {"criterion": key, "finding": "테스트용 검토", "resolution": "유지"} for key in QUALITY_CHECKS])
+
     def close(self):
         pass
 

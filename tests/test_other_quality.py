@@ -6,7 +6,7 @@ from tests.test_workflow import FakeAI, issue, opinion, setup_run, code
 
 OTHER = Code(id='CO', category='기타', name='기타 의견', definition='일반 주제로 묶기 어려운 지엽적 의견', reason='검증')
 
-@pytest.mark.parametrize('count,status,calls', [(1,'completed',0),(2,'completed',1),(3,'completed',1),(4,'needs_review',1)])
+@pytest.mark.parametrize('count,status,calls', [(1,'completed',0),(2,'completed',1),(3,'completed',1),(4,'completed',1)])
 def test_other_thresholds_use_unique_vocs(count,status,calls):
     store=Store();run=setup_run(store,['빠름']*20,[code(),OTHER])
     class AI(FakeAI):

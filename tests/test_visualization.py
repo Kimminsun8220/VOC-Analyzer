@@ -193,7 +193,7 @@ def test_manual_correction_refreshes_charts_exports_and_selection_revision(prepa
     app.run()
     assert before_signatures != [data["signature"] for data in chart_specs(app)]
     sentiments = sentiment_data(app)["rows"]
-    assert [(row["label"], row["count"]) for row in sentiments] == [("긍정", 0), ("부정", 1), (OTHER_SENTIMENT, 1)]
+    assert [(row["label"], row["count"]) for row in sentiments] == [("긍정", 0), ("부정", 1), ("무응답", 1)]
     assert not app.dataframe
     assert {row["members"][0] for row in chart_specs(app)[1]["rows"]} == {"C2", "C4"}
     export = dashboard_export(dashboard((store, run_id, codes)), store.run(run_id), store.codebook(book_id), "전체")

@@ -11,6 +11,7 @@ import streamlit as st
 
 from src.chart_data import COUNT, PERCENT
 from src.charts_ui import PRIMARY_FONT, SECONDARY_FONT, result_bars_renderer
+from src.response_basis import NO_CONTENT
 
 OTHER_SENTIMENT = "무응답/중립/미검토"
 SENTIMENT_COLORS = {"긍정": "#238577", "부정": "#B45339", "혼합": "#7964A4",
@@ -47,6 +48,9 @@ def response_sentiments(view, opinions):
 
 
 def sentiment_response_ids(view, opinions, sentiment):
+    if sentiment in ("무응답", "중립", "미검토"):
+        labels = overview_sentiment_labels(view, opinions)
+        return labels.index[labels.eq(sentiment)]
     labels = response_sentiment_labels(view, opinions)
     allowed = [sentiment, "혼합"] if sentiment in ("긍정", "부정") else [sentiment]
     return labels.index[labels.isin(allowed)]
@@ -57,6 +61,32 @@ def sentiment_mentions(view, opinions):
     return pd.DataFrame([{"감성": label, COUNT: len(sentiment_response_ids(view, opinions, label)),
                          PERCENT: len(sentiment_response_ids(view, opinions, label)) / total * 100 if total else 0}
                         for label in ("긍정", "부정", OTHER_SENTIMENT)])
+
+
+def overview_sentiment_labels(view, opinions):
+    """무응답을 중립 의견과 분리하되 혼합 의견의 기존 규칙을 보존한다."""
+    labels = response_sentiment_labels(view, opinions)
+    statuses = view.drop_duplicates("VOC ID").set_index("VOC ID")["응답 상태"]
+    sentiments = opinions.groupby("VOC ID")["감성"].agg(set)
+    for identifier in labels.index[labels.eq(OTHER_SENTIMENT)]:
+        if statuses[identifier] == NO_CONTENT:
+            labels[identifier] = "무응답"
+        elif statuses[identifier] == "의견 있음" and sentiments.get(identifier, set()) == {"중립"}:
+            labels[identifier] = "중립"
+        else:
+            labels[identifier] = "미검토"
+    return labels
+
+
+def overview_mentions(view, opinions):
+    labels = overview_sentiment_labels(view, opinions)
+    total = len(labels)
+    rows = []
+    for label in ("긍정", "부정", "중립", "무응답", "미검토"):
+        allowed = [label, "혼합"] if label in ("긍정", "부정") else [label]
+        count = int(labels.isin(allowed).sum())
+        rows.append({"감성": label, COUNT: count, PERCENT: count / total * 100 if total else 0.0})
+    return pd.DataFrame(rows)
 
 
 def category_sentiment_labels(view, opinions, categories):
@@ -119,17 +149,17 @@ def show_category_context(store, run, view, opinions, categories, sentiment, pre
     st.rerun()
 
 
-def show_sentiment_overview(store, run, view, opinions, prefix):
-    sentiments = sentiment_mentions(view, opinions)
+def show_sentiment_overview(store, run, view, opinions, prefix, *, basis="전체 기준"):
+    sentiments = overview_mentions(view, opinions)
     selected = st.session_state.get(prefix + "_dashboard_sentiment")
     rows = [{"id": row["감성"], "label": row["감성"], "count": int(row[COUNT]),
-             "percent": float(row[PERCENT]), "color": SENTIMENT_COLORS[row["감성"]]}
+             "percent": float(row[PERCENT]), "color": SENTIMENT_COLORS.get(row["감성"], "#CBD5E1")}
             for row in sentiments.to_dict("records") if row[COUNT] or row["감성"] in ("긍정", "부정") or row["감성"] == selected]
-    signature = sha256(json.dumps([run["id"], run["result_revision"], rows,
+    signature = sha256(json.dumps([run["id"], run["result_revision"], basis, len(view), rows,
         selected, st.session_state.get(prefix + "_chart_epoch", 0)], ensure_ascii=False).encode()).hexdigest()[:20]
     result = result_bars_renderer()(key=prefix + "_overall_sentiments",
         data={"variant": "sentiment", "rows": rows, "title": "긍정·부정 언급률", "signature": signature, "selected": selected,
-              "denominator": int(view["VOC ID"].nunique())}, on_action_change=lambda: None)
+              "basis": basis, "denominator": int(view["VOC ID"].nunique())}, on_action_change=lambda: None)
     action = result.action
     if not action or action.get("nonce") == st.session_state.get(prefix + "_last_sentiment_action"):
         return None

@@ -10,14 +10,15 @@ from src.result_explorer import (
     NORMAL_STATES, FAILED_STATES, filtered_responses,
 )
 from src.response_table import show_response_table
-from src.result_downloads import XLSX_MIME, classification_frame, statistics_frames, xlsx_download
+from src.result_downloads import XLSX_MIME, download_tables, xlsx_download
 from src.result_groups import initial_layout, load_code_group, grouped_dashboard, change_layout
 from src.saved_groups_ui import show_saved_group_picker
+from src.response_basis import ALL_BASIS, VALID_BASIS, basis_responses
 
 MODES = ["전체 보기", "대분류로 묶기", "세부분류 직접 선택"]
 
 
-def show_grouped_results(store, run, book, originals, issues, dataset=None, *, tools_container=None):
+def show_grouped_results(store, run, book, originals, issues, dataset=None, *, tools_container=None, basis=ALL_BASIS):
     if tools_container is None:
         tools_container = st.container(key="result_header_tools", horizontal=True,
             horizontal_alignment="right", vertical_alignment="center", gap="small")
@@ -60,9 +61,13 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None, *, t
         selected_ids = [code.id for code in codes if code.category in st.session_state[category_key]]
     else:
         selected_ids = st.session_state[codes_key]
-    baseline = group_results(originals, issues, codes)
+    chart_originals = basis_responses(originals, basis)
+    chart_issues = issues if issues.empty else issues[issues["VOC ID"].isin(chart_originals["VOC ID"])]
+    if basis != ALL_BASIS and st.session_state.get(prefix + "_dashboard_sentiment") == "무응답":
+        st.session_state[prefix + "_dashboard_sentiment"] = None
+    baseline = group_results(chart_originals, chart_issues, codes)
     if run["status"] == "completed" and not originals.empty:
-        sentiment_scope = show_sentiment_overview(store, run, originals, baseline.issues, prefix)
+        sentiment_scope = show_sentiment_overview(store, run, chart_originals, baseline.issues, prefix, basis=basis)
         if sentiment_scope:
             reset()
             st.session_state[prefix + "_drill_categories"] = []
@@ -74,7 +79,7 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None, *, t
             st.rerun()
     dashboard_sentiment = st.session_state.get(prefix + "_dashboard_sentiment")
     if dashboard_sentiment:
-        _, chart_group, _ = filtered_responses(originals, issues, codes, None,
+        _, chart_group, _ = filtered_responses(chart_originals, chart_issues, codes, None,
             {"_response_sentiment": dashboard_sentiment})
     else:
         chart_group = baseline
@@ -125,7 +130,7 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None, *, t
             st.session_state[prefix + "_show_originals"] = True
             st.rerun()
     show_dashboard(store, run, book, chart_group, None, dashboard_sentiment or "전체", prefix, originals,
-        controls_container=display_controls)
+        controls_container=display_controls, basis=basis)
     group_notice = st.session_state.pop(prefix + "_notice", None)
     if group_notice:
         st.success(group_notice)
@@ -179,11 +184,19 @@ def show_grouped_results(store, run, book, originals, issues, dataset=None, *, t
         if not save_ids:
             st.caption("저장할 분류를 차트에서 선택해주세요.")
     with tools_container.popover("다운로드", icon=":material/download:"):
-        st.caption("전체 자료 기준")
-        st.download_button("VOC별 분류 다운로드", xlsx_download({"VOC별 분류": classification_frame(originals, issues)}),
-            file_name="voc_classifications.xlsx", mime=XLSX_MIME, on_click="ignore", key=prefix + "_download_vocs")
-        st.download_button("분류 통계 다운로드", xlsx_download(statistics_frames(originals, issues, codes,
-            st.session_state.get(prefix + "_layout"))), file_name="classification_statistics.xlsx",
+        download_key = prefix + "_download_basis"
+        if st.session_state.get(prefix + "_download_screen_basis") != basis:
+            st.session_state[download_key] = basis
+            st.session_state[prefix + "_download_screen_basis"] = basis
+        download_basis = st.radio("다운로드 기준", [ALL_BASIS, VALID_BASIS], horizontal=True,
+            key=download_key, help="선택한 기준의 전체 자료를 받습니다. 화면의 감성·분류 필터는 적용하지 않습니다.")
+        suffix = "전체기준" if download_basis == ALL_BASIS else "유효기준"
+        layout = st.session_state.get(prefix + "_layout")
+        st.download_button("VOC별 분류 다운로드", xlsx_download(download_tables(
+            "vocs", originals, issues, codes, book, download_basis)),
+            file_name=f"voc_classifications_{suffix}.xlsx", mime=XLSX_MIME, on_click="ignore", key=prefix + "_download_vocs")
+        st.download_button("분류 통계 다운로드", xlsx_download(download_tables(
+            "statistics", originals, issues, codes, book, download_basis, layout)), file_name=f"classification_statistics_{suffix}.xlsx",
             mime=XLSX_MIME, on_click="ignore", key=prefix + "_download_statistics")
 
     def close_popup():

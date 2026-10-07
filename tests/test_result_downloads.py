@@ -11,7 +11,8 @@ from result_chart_helpers import chart_event, table_event
 from test_grouping import completed, open_results
 from src.category_summary import OTHER_SENTIMENT
 from src.response_table import save_table_sentiment
-from src.result_downloads import classification_frame, statistics_frames, xlsx_download
+from src.result_downloads import classification_frame, statistics_frames, xlsx_download, download_tables
+from src.response_basis import ALL_BASIS, VALID_BASIS
 from src.result_groups import initial_layout, load_code_group
 from src.models import CodingResult, Issue
 from src.results import result_tables
@@ -138,3 +139,40 @@ def test_ui_has_two_main_downloads_and_no_popup_download_menu(completed, monkeyp
     chart_event(app, "code", "open", ["wrong"])
     table_event(app, "filter", column="감성", values=[])
     assert len(app.get("download_button")) == 2 and not app.exception and not app.error
+
+
+def test_download_basis_controls_vocs_statistics_and_excel_metadata(completed):
+    store, run_id, codes = completed
+    originals, issues = result_tables(store, run_id)
+    book = store.codebook(store.run(run_id)["codebook_id"])
+    for basis, denominator, expected_percent in [(ALL_BASIS, 5, 80), (VALID_BASIS, 4, 100)]:
+        vocs = download_tables("vocs", originals, issues, codes, book, basis)
+        stats = download_tables("statistics", originals, issues, codes, book, basis)
+        assert vocs["VOC별 분류"]["VOC ID"].nunique() == denominator
+        assert stats["대분류"].iloc[0]["%"] == expected_percent
+        workbook = load_workbook(BytesIO(xlsx_download(stats)))
+        metadata = dict(list(workbook["집계 기준"].values)[1:])
+        assert metadata["응답 기준"] == basis
+        assert metadata["분모 응답 수"] == denominator
+        assert metadata["전체 응답 수"] == 5 and metadata["무응답 수"] == 1
+        assert metadata["분류 기준표 버전"] == book["version"]
+
+
+def test_download_selection_follows_screen_but_can_be_changed_independently(completed, monkeypatch):
+    media = MemoryMediaFileStorage("/mock/media")
+    monkeypatch.setattr(app_test, "MemoryMediaFileStorage", lambda endpoint: media)
+    app, prefix = open_results(completed, monkeypatch)
+    _, run_id, _ = completed
+    screen_key, download_key = f"result_basis_{run_id}", prefix + "_download_basis"
+    assert app.radio(key=download_key).value == ALL_BASIS
+    app.radio(key=screen_key).set_value(VALID_BASIS).run()
+    assert app.radio(key=download_key).value == VALID_BASIS
+    button = next(b for b in app.get("download_button") if b.label == "분류 통계 다운로드")
+    workbook = load_workbook(BytesIO(media.get_file(button.proto.url.rsplit("/", 1)[-1]).content))
+    assert workbook["대분류"]["C2"].value == 100
+    app.radio(key=download_key).set_value(ALL_BASIS).run()
+    assert app.radio(key=screen_key).value == VALID_BASIS
+    button = next(b for b in app.get("download_button") if b.label == "분류 통계 다운로드")
+    workbook = load_workbook(BytesIO(media.get_file(button.proto.url.rsplit("/", 1)[-1]).content))
+    assert workbook["대분류"]["C2"].value == 80
+    assert not app.exception

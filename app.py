@@ -19,6 +19,7 @@ from src.grouping_ui import show_grouped_results
 from src.ingestion import excel_sheet_names, prepare_preview, read_csv, read_excel, read_pasted_text
 from src.manual_ui import show_manual
 from src.results import STATUS_LABELS, result_tables
+from src.response_basis import ALL_BASIS, VALID_BASIS
 from src.storage import RunBusyError, Store
 from src.run_ui import request_run, show_run_controls
 from src.workspace_ui import apply_workspace_theme
@@ -203,18 +204,25 @@ def results_screen(store, dataset, tools_container=None):
         st.session_state[key] = pending
     if key not in st.session_state:
         st.session_state[key] = next((item["id"] for item in runs if item["status"] == "completed"), runs[0]["id"])
-    with st.container(key="result_metadata"):
-        summary, history = st.columns([4, 1], vertical_alignment="center")
+    with st.container(key="result_metadata", horizontal=True, vertical_alignment="center", gap="medium"):
+        summary = st.container()
+        basis_control = st.container(width="content")
+        history = st.container(width="content")
     with history.container(horizontal=True, horizontal_alignment="right"):
         with st.popover("분석 이력", icon=":material/history:", type="tertiary"):
             selected = st.selectbox("저장된 분석 실행", list(labels), format_func=labels.get, key=key)
+            version_info = st.empty()
     run = store.run(selected)
     book = store.codebook(run["codebook_id"])
     originals, issues = result_tables(store, selected)
     empty_count = originals['응답 상태'].eq('없음·무응답·모름').sum()
     book_name = f"{book['name']} · " if book["name"] else ""
-    summary.caption(f"전체 응답 {len(originals)}건 · 분류 기준표 {book_name}v{book['version']}",
-        help=f"내용 없는 응답 {empty_count}건 포함")
+    summary.caption(f"전체 응답 {len(originals)}건 · 무응답 {empty_count}건")
+    with basis_control:
+        basis = st.radio("집계 기준", [ALL_BASIS, VALID_BASIS], index=0, horizontal=True,
+            key=f"result_basis_{selected}", label_visibility="collapsed",
+            help="전체 기준은 무응답을 포함합니다. 유효 기준은 무응답으로 분류된 응답만 제외하며 중립 의견은 포함합니다.")
+    version_info.caption(f"분류 기준표 {book_name}v{book['version']}")
     if run["status"] != "completed":
         show_run_controls(store, selected, with_ai, run_with_progress)
     else:
@@ -222,7 +230,7 @@ def results_screen(store, dataset, tools_container=None):
         notice = other_review_notice(quality)
         if notice:
             st.caption(notice)
-    show_grouped_results(store, run, book, originals, issues, dataset, tools_container=tools_container)
+    show_grouped_results(store, run, book, originals, issues, dataset, tools_container=tools_container, basis=basis)
 
 
 def main():

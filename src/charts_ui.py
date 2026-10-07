@@ -55,7 +55,7 @@ def result_bars_renderer():
         js=(assets / "result_bars.js").read_text(encoding="utf-8"), isolate_styles=False)
 
 
-def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix, originals, *, controls_container=None):
+def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix, originals, *, controls_container=None, basis="전체 기준"):
     """대분류에서 세부분류로 탐색하고 세부분류 원문을 연다."""
     if run["status"] != "completed":
         st.info("분류와 검토가 완료되면 전체 분포를 보여줍니다.")
@@ -68,7 +68,8 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix, o
     with controls.container(key="result_display_controls", horizontal=True, horizontal_alignment="right", vertical_alignment="center", gap="small"):
         caption = st.container(width="content")
         settings = st.container(width="content")
-    caption.caption(f"{sentiment} 응답 {grouped.total_count}건 기준",
+    scope_label = "무응답 제외" if sentiment == "전체" and basis == "유효 기준" else sentiment
+    caption.caption(f"{scope_label} 응답 {grouped.total_count}건 기준",
         help="분류별 고유 응답 수를 현재 감성의 전체 응답 수로 나눕니다. 대분류를 선택해도 분모는 유지하며, 한 응답에 여러 분류가 있으면 분류 비율의 합은 100%를 넘을 수 있습니다.")
     with settings.container(horizontal=True, horizontal_alignment="right"):
         current_limit = st.session_state.get(prefix + "_top_n", "전체")
@@ -81,6 +82,7 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix, o
         st.session_state[layout_key] = initial_layout(book["codes"])
     layout = st.session_state[layout_key]
     signature = chart_signature(run, layout, measure, top_n, st.session_state.get(prefix + "_chart_epoch", 0))
+    signature += f":{basis}:{grouped.total_count}"
     notice = st.session_state.pop(prefix + "_chart_notice", None)
     if notice:
         st.info(notice)
@@ -112,7 +114,7 @@ def show_dashboard(store, run, book, grouped, selected_ids, sentiment, prefix, o
                 for row in frame.to_dict("records")]
         result = renderer(key=f"{prefix}_bars_{kind}",
             data={"rows": rows, "title": title, "signature": signature, "denominator": grouped.total_count,
-                  "maximum": grouped.total_count, "scope": sentiment,
+                  "maximum": grouped.total_count, "scope": scope_label,
                   "level": kind, "filtered": bool(drill)},
             on_action_change=lambda: None)
         action = result.action

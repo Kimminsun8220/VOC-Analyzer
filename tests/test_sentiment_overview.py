@@ -4,7 +4,7 @@ import pytest
 
 from result_chart_helpers import chart_data, chart_event, charts, sentiment_data, sentiment_event, table_event
 from test_grouping import completed, open_results, response_table
-from src.category_summary import OTHER_SENTIMENT, sentiment_mentions
+from src.category_summary import OTHER_SENTIMENT, overview_mentions
 from src.chart_data import COUNT
 from src.models import CodingResult, Issue
 from src.result_explorer import filtered_responses
@@ -12,7 +12,7 @@ from src.results import result_tables
 
 
 COHORTS = [("긍정", {"V0001", "V0004"}), ("부정", {"V0001", "V0002", "V0003"}),
-           (OTHER_SENTIMENT, {"V0005"})]
+           ("무응답", {"V0005"})]
 
 
 @pytest.mark.parametrize("label,ids", COHORTS)
@@ -21,7 +21,7 @@ def test_segment_count_matches_unique_vocs_and_keeps_all_their_opinions(complete
     originals, issues = result_tables(store, run_id)
     view, grouped, _ = filtered_responses(originals, issues, codes, None, {"_response_sentiment": label})
     assert set(view["VOC ID"]) == ids
-    assert len(view) == sentiment_mentions(originals, issues).set_index("감성").loc[label, COUNT]
+    assert len(view) == overview_mentions(originals, issues).set_index("감성").loc[label, COUNT]
     assert set(grouped.issues["감성"]) <= {label}
     if label == "혼합":
         assert set(grouped.issues["코드 ID"]) == {"speed", "wrong"}
@@ -52,7 +52,7 @@ def test_click_filters_both_charts_and_reclick_restores_all(completed, monkeypat
     assert not app.session_state[prefix + "_show_originals"]
     assert app.session_state[prefix + "_dashboard_sentiment"] == label
     assert sentiment_data(app)["selected"] == label
-    if label == OTHER_SENTIMENT:
+    if label == "무응답":
         assert not charts(app)
         assert any("분류된 의견이 없습니다" in info.value for info in app.info)
     else:
@@ -128,7 +128,7 @@ def test_sentiment_edit_recomputes_bar_and_selected_cohort_without_changing_ai(c
     assert set(response_table(app)["VOC ID"]) == {"V0001"}
     assert charts(app)
     assert {row["id"]: row["count"] for row in sentiment_data(app)["rows"]} == {
-        "긍정": 1, "부정": 4, OTHER_SENTIMENT: 1}
+        "긍정": 1, "부정": 4, "무응답": 1}
     sentiment_event(app, "긍정")
     assert chart_data(app)["denominator"] == 5
     assert store.results(run_id) == before

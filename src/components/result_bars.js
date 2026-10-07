@@ -73,13 +73,14 @@ export default function(component) {
     const heading = make('div', 'result-mention-heading');
     const title = make('span', '', '긍정·부정 언급률');
     const help = button('언급률 집계 기준', 'result-mention-help', () => {});
-    help.textContent = 'ⓘ'; help.title = '전체 응답 기준입니다. 혼합 응답은 긍정과 부정에 각각 포함되므로 합계는 100%를 넘을 수 있습니다. 중립 등은 무응답·중립·미검토를 포함합니다.';
-    heading.append(title, help, make('span', 'result-mention-denominator', `전체 응답 ${data.denominator}건 기준`));
+    const basisLabel = data.basis === '유효 기준' ? '무응답 제외' : '전체';
+    help.textContent = 'ⓘ'; help.title = `${basisLabel} 응답 기준입니다. 혼합 응답은 긍정과 부정에 각각 포함되므로 합계는 100%를 넘을 수 있습니다. 무응답은 중립과 구분합니다.`;
+    heading.append(title, help, make('span', 'result-mention-denominator', `${basisLabel} 응답 ${data.denominator}건 기준`));
     root.append(heading);
     for (const row of data.rows) {
       const neutral = !['긍정', '부정'].includes(row.id);
       const selected = data.selected === row.id;
-      const label = neutral ? '중립 등' : `${row.label} 포함`;
+      const label = neutral ? row.label : `${row.label} 포함`;
       const item = button(`${label} ${row.percent.toFixed(1)}% (${row.count}건) 필터 ${selected ? '해제' : '적용'}`,
         neutral ? 'result-mention-neutral' : 'result-mention-row', () => send('filter', row.id));
       item.setAttribute('aria-pressed', String(selected)); item.disabled = !row.count;

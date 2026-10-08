@@ -3,15 +3,6 @@
   "tables": {
     "datasets": [
       {
-        "id": "7e43bb7d0dcb496c90f9f8c25fe08272",
-        "name": "SSI",
-        "created_at": "2026-10-03T02:40:54.436070+00:00",
-        "input_type": "파일 업로드",
-        "text_column": "E1_1",
-        "records_json": "[{\"id\": \"V0001\", \"row\": 1, \"text\": \"가장 인상 깊었던 점은 구매 이후에도 이어지는 지속적인 고객관리였습니다. 차량 인수 후에도 정기적으로 점검 안내와 친절한 상담을 제공해 신뢰감을 주었고, 작은 문의에도 빠르게 대응해주는 점이 특히 좋았습니다.\", \"metadata\": {}}, {\"id\": \"V0002\", \"row\": 2, \"text\": \"딱히 없음\", \"metadata\": {}}, {\"id\": \"V0003\", \"row\": 3, \"text\": \"영업사원이 부족한것 같다.\", \"metadata\": {}}, {\"id\": \"V0004\", \"row\": 4, \"text\": \"서비스 활용방법과 편의조작설정방법을 깊게 설명해주시고 사후일어날수있는 AS에 대하여 전반적으로 잘 설명해줌\", \"metadata\": {}}, {\"id\": \"V0005\", \"row\": 5, \"text\": \"그냥 팔면 땡인것 같습니다.\", \"metadata\": {}}, {\"id\": \"V0006\", \"row\": 6, \"text\": \"사실 AS기간이나 보증 관련에 대해서 자세하게 설명을 해 주기를 원했으나 개략적인 설명외에는 없어서 살짝 불만족스러웠습니다.\", \"metadata\": {}}, {\"id\": \"V0007\", \"row\": 7, \"text\": \"원래 그렇다지만, 할인 프로모션이 없는게 아쉽습니다.\", \"metadata\": {}}, {\"id\": \"V0008\", \"row\": 8, \"text\": \"구매이후 관리나 as 관련 안내등이 좀 부족해보이긴합니다.\", \"metadata\": {}}, {\"id\": \"V0009\", \"row\": 9, \"text\": \"친절하고 내가 신경쓸 게 거의 없이 알아서 진행해주셨다\", \"metadata\": {}}, {\"id\": \"V0010\", \"row\": 10, \"text\": \"없음\", \"metadata\": {}}, {\"id\": \"V0011\", \"row\": 11, \"text\": \"편하게 대해주셔서 감사합니다.\", \"metadata\": {}}, {\"id\": \"V0012\", \"row\": 12, \"text\": \"영업사원의 솔직함\", \"metadata\": {}}, {\"id\": \"V0013\", \"row\": 13, \"text\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며 전문적인 영업사원으로부터 무탈하게 인수 과정을 통해 차량을 구매하였습니다. 이후에도 여러 문의사항들에 대하여 잘 대응해주셔서 잘 타고 있습니다.\", \"metadata\": {}}, {\"id\": \"V0014\", \"row\": 14, \"text\": \"차량 유지를 위한 소소한 질문에도 성실히 답변을 잘 해주었습니다. 차량 사후 관리나 정비를 위해 모르는 것이 많았는데 큰 도움 주었습니다.\", \"metadata\": {}}, {\"id\": \"V0015\", \"row\": 15, \"text\": \"…\", \"metadata\": {}}, {\"id\": \"V0016\", \"row\": 16, \"text\": \"만족합니다.\", \"metadata\": {}}, {\"id\": \"V0017\", \"row\": 17, \"text\": \"친절\", \"metadata\": {}}, {\"id\": \"V0018\", \"row\": 18, \"text\": \"영업사원의 친절함과 차에 대한 전문지식이 많았다\", \"metadata\": {}}, {\"id\": \"V0019\", \"row\": 19, \"text\": \"그냥 테슬라코리아는 인력이 부족한거같다\", \"metadata\": {}}, {\"id\": \"V0020\", \"row\": 20, \"text\": \"친절 자세한설명 책임감\", \"metadata\": {}}]",
-        "context": "자동차 구매 만족도 조사에서 전반적인 구매과정의 만족도를 묻는 문항에 대한 voc였습니다."
-      },
-      {
         "id": "fecaf56f68e64677b52a40c0a0f9e9fa",
         "name": "상품평 VOC",
         "created_at": "2026-10-07T00:42:35.340192+00:00",
@@ -22,54 +13,6 @@
       }
     ],
     "codebooks": [
-      {
-        "id": "ef93862db7384f668092305a544612d3",
-        "dataset_id": "7e43bb7d0dcb496c90f9f8c25fe08272",
-        "version": 1,
-        "status": "draft",
-        "codes_json": "[{\"category\": \"고객 서비스\", \"name\": \"사후 관리 및 문의 대응\", \"definition\": \"차량 인도 후 제공되는 정기 점검 안내, AS 관련 설명, 사후 관리 및 고객 문의에 대한 대응 수준을 의미합니다.\", \"reason\": \"구매 이후의 지속적인 관리와 AS 대응에 대한 긍정적/부정적 의견이 다수 확인되어 이를 분류하기 위해 추가함.\", \"evidence\": [{\"voc_id\": \"V0001\", \"quote\": \"구매 이후에도 이어지는 지속적인 고객관리였습니다\"}, {\"voc_id\": \"V0005\", \"quote\": \"그냥 팔면 땡인것 같습니다.\"}, {\"voc_id\": \"V0008\", \"quote\": \"구매이후 관리나 as 관련 안내등이 좀 부족해보이긴합니다.\"}, {\"voc_id\": \"V0013\", \"quote\": \"이후에도 여러 문의사항들에 대하여 잘 대응해주셔서\"}, {\"voc_id\": \"V0014\", \"quote\": \"차량 사후 관리나 정비를 위해 모르는 것이 많았는데 큰 도움 주었습니다.\"}], \"id\": \"Ce5c618b60a93\"}, {\"category\": \"영업사원\", \"name\": \"친절도 및 응대 태도\", \"definition\": \"영업사원의 친절함, 솔직함, 책임감, 편안함 등 고객을 대하는 태도와 응대 방식을 의미합니다.\", \"reason\": \"영업사원의 친절한 태도와 성실한 응대에 대한 긍정적 평가가 다수 나타나 이를 분류하기 위해 추가함.\", \"evidence\": [{\"voc_id\": \"V0009\", \"quote\": \"친절하고\"}, {\"voc_id\": \"V0011\", \"quote\": \"편하게 대해주셔서\"}, {\"voc_id\": \"V0012\", \"quote\": \"영업사원의 솔직함\"}, {\"voc_id\": \"V0017\", \"quote\": \"친절\"}, {\"voc_id\": \"V0018\", \"quote\": \"영업사원의 친절함\"}, {\"voc_id\": \"V0020\", \"quote\": \"친절\"}], \"id\": \"Cd469373fc27e\"}, {\"category\": \"영업사원\", \"name\": \"전문성 및 설명력\", \"definition\": \"차량 기능, 조작 방법, AS 및 보증 기간 등 차량 구매 및 유지에 필요한 정보에 대한 영업사원의 전문 지식과 설명 수준을 의미합니다.\", \"reason\": \"차량 기능 및 AS 관련 설명의 상세함이나 영업사원의 전문성에 대한 의견이 확인되어 이를 분류하기 위해 추가함.\", \"evidence\": [{\"voc_id\": \"V0004\", \"quote\": \"서비스 활용방법과 편의조작설정방법을 깊게 설명해주시고\"}, {\"voc_id\": \"V0006\", \"quote\": \"사실 AS기간이나 보증 관련에 대해서 자세하게 설명을 해 주기를 원했으나 개략적인 설명외에는 없어서\"}, {\"voc_id\": \"V0013\", \"quote\": \"전문적인 영업사원\"}, {\"voc_id\": \"V0018\", \"quote\": \"차에 대한 전문지식이 많았다\"}, {\"voc_id\": \"V0020\", \"quote\": \"자세한설명\"}], \"id\": \"Ccf31140cbd83\"}, {\"category\": \"회사 운영\", \"name\": \"인력 부족\", \"definition\": \"영업사원 또는 회사 전반의 인력이 부족하다고 느끼는 점을 의미합니다.\", \"reason\": \"영업사원 및 회사 인력 부족에 대한 직접적인 불만 의견이 확인되어 이를 분류하기 위해 추가함.\", \"evidence\": [{\"voc_id\": \"V0003\", \"quote\": \"영업사원이 부족한것 같다.\"}, {\"voc_id\": \"V0019\", \"quote\": \"그냥 테슬라코리아는 인력이 부족한거같다\"}], \"id\": \"C4ac5dc64188b\"}, {\"category\": \"혜택 및 조건\", \"name\": \"할인 및 프로모션\", \"definition\": \"차량 구매 시 제공되는 할인 혜택이나 프로모션의 유무에 대한 만족도를 의미합니다.\", \"reason\": \"할인 프로모션 부재에 대한 아쉬움을 표현한 의견이 존재하여 이를 분류하기 위해 추가함.\", \"evidence\": [{\"voc_id\": \"V0007\", \"quote\": \"할인 프로모션이 없는게 아쉽습니다.\"}], \"id\": \"C8b3e81a80cab\"}, {\"category\": \"종합 평가\", \"name\": \"구매 경험 및 환경 만족도\", \"definition\": \"차량 구매 과정 전반에 대한 만족도, 신속성 및 영업소의 청결 상태 등을 의미합니다.\", \"reason\": \"전반적인 구매 경험의 만족도와 영업소 환경에 대한 긍정적 평가를 분류하기 위해 추가함.\", \"evidence\": [{\"voc_id\": \"V0013\", \"quote\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며\"}, {\"voc_id\": \"V0016\", \"quote\": \"만족합니다.\"}], \"id\": \"C2bbca7cae217\"}]",
-        "context": "자동차 구매 만족도 조사에서 전반적인 구매과정의 만족도를 묻는 문항에 대한 voc였습니다.",
-        "model": "gemini-3.5-flash",
-        "sample_ids_json": "[\"V0001\", \"V0002\", \"V0003\", \"V0004\", \"V0005\", \"V0006\", \"V0007\", \"V0008\", \"V0009\", \"V0010\", \"V0011\", \"V0012\", \"V0013\", \"V0014\", \"V0015\", \"V0016\", \"V0017\", \"V0018\", \"V0019\", \"V0020\"]",
-        "parent_id": null,
-        "changes_json": "[]",
-        "constraints_json": "[]",
-        "created_at": "2026-10-03T02:41:24.820347+00:00",
-        "name": "",
-        "deleted_at": "2026-10-06T07:08:01.062280+00:00"
-      },
-      {
-        "id": "d2afc58ce49c4a3db408f1108f9e56f5",
-        "dataset_id": "7e43bb7d0dcb496c90f9f8c25fe08272",
-        "version": 2,
-        "status": "confirmed",
-        "codes_json": "[{\"category\": \"고객 서비스\", \"name\": \"사후 관리 및 문의 대응\", \"definition\": \"차량 인도 후 제공되는 정기 점검 안내, AS 관련 설명, 사후 관리 및 고객 문의에 대한 대응 수준을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0001\", \"quote\": \"구매 이후에도 이어지는 지속적인 고객관리였습니다\"}, {\"voc_id\": \"V0005\", \"quote\": \"그냥 팔면 땡인것 같습니다.\"}, {\"voc_id\": \"V0008\", \"quote\": \"구매이후 관리나 as 관련 안내등이 좀 부족해보이긴합니다.\"}, {\"voc_id\": \"V0013\", \"quote\": \"이후에도 여러 문의사항들에 대하여 잘 대응해주셔서\"}, {\"voc_id\": \"V0014\", \"quote\": \"차량 사후 관리나 정비를 위해 모르는 것이 많았는데 큰 도움 주었습니다.\"}], \"id\": \"Ce5c618b60a93\"}, {\"category\": \"영업사원\", \"name\": \"친절도 및 응대 태도\", \"definition\": \"영업사원의 친절함, 솔직함, 책임감, 편안함 등 고객을 대하는 태도와 응대 방식을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0009\", \"quote\": \"친절하고\"}, {\"voc_id\": \"V0011\", \"quote\": \"편하게 대해주셔서\"}, {\"voc_id\": \"V0012\", \"quote\": \"영업사원의 솔직함\"}, {\"voc_id\": \"V0017\", \"quote\": \"친절\"}, {\"voc_id\": \"V0018\", \"quote\": \"영업사원의 친절함\"}, {\"voc_id\": \"V0020\", \"quote\": \"친절\"}], \"id\": \"Cd469373fc27e\"}, {\"category\": \"영업사원\", \"name\": \"전문성\", \"definition\": \"차량 기능, 조작 방법, AS 및 보증 기간 등 차량 구매 및 유지에 필요한 정보에 대한 영업사원의 전문 지식과 설명 수준을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0004\", \"quote\": \"서비스 활용방법과 편의조작설정방법을 깊게 설명해주시고\"}, {\"voc_id\": \"V0006\", \"quote\": \"사실 AS기간이나 보증 관련에 대해서 자세하게 설명을 해 주기를 원했으나 개략적인 설명외에는 없어서\"}, {\"voc_id\": \"V0013\", \"quote\": \"전문적인 영업사원\"}, {\"voc_id\": \"V0018\", \"quote\": \"차에 대한 전문지식이 많았다\"}, {\"voc_id\": \"V0020\", \"quote\": \"자세한설명\"}], \"id\": \"Ccf31140cbd83\"}, {\"category\": \"회사 운영\", \"name\": \"인력 부족\", \"definition\": \"영업사원 또는 회사 전반의 인력이 부족하다고 느끼는 점을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0003\", \"quote\": \"영업사원이 부족한것 같다.\"}, {\"voc_id\": \"V0019\", \"quote\": \"그냥 테슬라코리아는 인력이 부족한거같다\"}], \"id\": \"C4ac5dc64188b\"}, {\"category\": \"혜택 및 조건\", \"name\": \"할인 및 프로모션\", \"definition\": \"차량 구매 시 제공되는 할인 혜택이나 프로모션의 유무에 대한 만족도를 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0007\", \"quote\": \"할인 프로모션이 없는게 아쉽습니다.\"}], \"id\": \"C8b3e81a80cab\"}, {\"category\": \"종합 평가\", \"name\": \"구매 경험\", \"definition\": \"차량 구매 과정 전반에 대한 만족도, 신속성 및 영업소의 청결 상태 등을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0013\", \"quote\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며\"}, {\"voc_id\": \"V0016\", \"quote\": \"만족합니다.\"}], \"id\": \"C2bbca7cae217\"}]",
-        "context": "자동차 구매 만족도 조사에서 전반적인 구매과정의 만족도를 묻는 문항에 대한 voc였습니다.",
-        "model": "gemini-3.5-flash",
-        "sample_ids_json": "[\"V0001\", \"V0002\", \"V0003\", \"V0004\", \"V0005\", \"V0006\", \"V0007\", \"V0008\", \"V0009\", \"V0010\", \"V0011\", \"V0012\", \"V0013\", \"V0014\", \"V0015\", \"V0016\", \"V0017\", \"V0018\", \"V0019\", \"V0020\"]",
-        "parent_id": "ef93862db7384f668092305a544612d3",
-        "changes_json": "[{\"kind\": \"user_confirmation\", \"changed_concepts\": []}]",
-        "constraints_json": "[]",
-        "created_at": "2026-10-03T02:43:17.951721+00:00",
-        "name": "",
-        "deleted_at": "2026-10-06T07:08:00.462703+00:00"
-      },
-      {
-        "id": "89fff22d85e349e9a14281413c8eab2c",
-        "dataset_id": "7e43bb7d0dcb496c90f9f8c25fe08272",
-        "version": 3,
-        "status": "confirmed",
-        "codes_json": "[{\"category\": \"고객 서비스\", \"name\": \"사후 관리 및 문의 대응\", \"definition\": \"차량 인도 후 제공되는 정기 점검 안내, AS 관련 설명, 사후 관리 및 고객 문의에 대한 대응 수준을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0001\", \"quote\": \"구매 이후에도 이어지는 지속적인 고객관리였습니다\"}, {\"voc_id\": \"V0005\", \"quote\": \"그냥 팔면 땡인것 같습니다.\"}, {\"voc_id\": \"V0008\", \"quote\": \"구매이후 관리나 as 관련 안내등이 좀 부족해보이긴합니다.\"}, {\"voc_id\": \"V0013\", \"quote\": \"이후에도 여러 문의사항들에 대하여 잘 대응해주셔서\"}, {\"voc_id\": \"V0014\", \"quote\": \"차량 사후 관리나 정비를 위해 모르는 것이 많았는데 큰 도움 주었습니다.\"}], \"id\": \"Ce5c618b60a93\"}, {\"category\": \"영업사원\", \"name\": \"친절도\", \"definition\": \"영업사원의 친절함, 솔직함, 책임감, 편안함 등 고객을 대하는 태도와 응대 방식을 의미합니다.\", \"reason\": \"사용자 분류 기준표 편집\", \"evidence\": [{\"voc_id\": \"V0009\", \"quote\": \"친절하고\"}, {\"voc_id\": \"V0011\", \"quote\": \"편하게 대해주셔서\"}, {\"voc_id\": \"V0012\", \"quote\": \"영업사원의 솔직함\"}, {\"voc_id\": \"V0017\", \"quote\": \"친절\"}, {\"voc_id\": \"V0018\", \"quote\": \"영업사원의 친절함\"}, {\"voc_id\": \"V0020\", \"quote\": \"친절\"}], \"id\": \"Cec7b99475abd\"}, {\"category\": \"영업사원\", \"name\": \"응대 태도\", \"definition\": \"고객의 구매 과정을 지원하고 응대하는 영업사원의 책임감, 적극성, 업무 처리 방식 및 태도를 의미합니다.\", \"reason\": \"사용자 분류 기준표 편집 · AI 분류 기준\", \"evidence\": [{\"voc_id\": \"V0009\", \"quote\": \"친절하고\"}, {\"voc_id\": \"V0011\", \"quote\": \"편하게 대해주셔서\"}, {\"voc_id\": \"V0012\", \"quote\": \"영업사원의 솔직함\"}, {\"voc_id\": \"V0017\", \"quote\": \"친절\"}, {\"voc_id\": \"V0018\", \"quote\": \"영업사원의 친절함\"}, {\"voc_id\": \"V0020\", \"quote\": \"친절\"}], \"id\": \"C4ebb845d08dd\"}, {\"category\": \"영업사원\", \"name\": \"전문성\", \"definition\": \"차량 기능, 조작 방법, AS 및 보증 기간 등 차량 구매 및 유지에 필요한 정보에 대한 영업사원의 전문 지식과 설명 수준을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0004\", \"quote\": \"서비스 활용방법과 편의조작설정방법을 깊게 설명해주시고\"}, {\"voc_id\": \"V0006\", \"quote\": \"사실 AS기간이나 보증 관련에 대해서 자세하게 설명을 해 주기를 원했으나 개략적인 설명외에는 없어서\"}, {\"voc_id\": \"V0013\", \"quote\": \"전문적인 영업사원\"}, {\"voc_id\": \"V0018\", \"quote\": \"차에 대한 전문지식이 많았다\"}, {\"voc_id\": \"V0020\", \"quote\": \"자세한설명\"}], \"id\": \"Ccf31140cbd83\"}, {\"category\": \"회사 운영\", \"name\": \"인력 부족\", \"definition\": \"영업사원 또는 회사 전반의 인력이 부족하다고 느끼는 점을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0003\", \"quote\": \"영업사원이 부족한것 같다.\"}, {\"voc_id\": \"V0019\", \"quote\": \"그냥 테슬라코리아는 인력이 부족한거같다\"}], \"id\": \"C4ac5dc64188b\"}, {\"category\": \"혜택 및 조건\", \"name\": \"할인 및 프로모션\", \"definition\": \"차량 구매 시 제공되는 할인 혜택이나 프로모션의 유무에 대한 만족도를 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0007\", \"quote\": \"할인 프로모션이 없는게 아쉽습니다.\"}], \"id\": \"C8b3e81a80cab\"}, {\"category\": \"종합 평가\", \"name\": \"구매 경험\", \"definition\": \"차량 구매 과정 전반에 대한 만족도, 신속성 \", \"reason\": \"사용자 분류 기준표 편집\", \"evidence\": [{\"voc_id\": \"V0013\", \"quote\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며\"}, {\"voc_id\": \"V0016\", \"quote\": \"만족합니다.\"}], \"id\": \"C41adcbf8ca6c\"}, {\"category\": \"영업소\", \"name\": \"청결\", \"definition\": \"영업소의 청결 상태 등을 의미합니다.\", \"reason\": \"사용자 분류 기준표 편집\", \"evidence\": [{\"voc_id\": \"V0013\", \"quote\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며\"}, {\"voc_id\": \"V0016\", \"quote\": \"만족합니다.\"}], \"id\": \"Cbca4956fc242\"}]",
-        "context": "자동차 구매 만족도 조사에서 전반적인 구매과정의 만족도를 묻는 문항에 대한 voc였습니다.",
-        "model": "gemini-3.5-flash",
-        "sample_ids_json": "[\"V0001\", \"V0002\", \"V0003\", \"V0004\", \"V0005\", \"V0006\", \"V0007\", \"V0008\", \"V0009\", \"V0010\", \"V0011\", \"V0012\", \"V0013\", \"V0014\", \"V0015\", \"V0016\", \"V0017\", \"V0018\", \"V0019\", \"V0020\"]",
-        "parent_id": "d2afc58ce49c4a3db408f1108f9e56f5",
-        "changes_json": "[{\"kind\": \"split\", \"source_id\": \"Cd469373fc27e\", \"target_ids\": [\"Cec7b99475abd\", \"C4ebb845d08dd\"], \"before\": {\"category\": \"영업사원\", \"name\": \"친절도 및 응대 태도\", \"definition\": \"영업사원의 친절함, 솔직함, 책임감, 편안함 등 고객을 대하는 태도와 응대 방식을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0009\", \"quote\": \"친절하고\"}, {\"voc_id\": \"V0011\", \"quote\": \"편하게 대해주셔서\"}, {\"voc_id\": \"V0012\", \"quote\": \"영업사원의 솔직함\"}, {\"voc_id\": \"V0017\", \"quote\": \"친절\"}, {\"voc_id\": \"V0018\", \"quote\": \"영업사원의 친절함\"}, {\"voc_id\": \"V0020\", \"quote\": \"친절\"}], \"id\": \"Cd469373fc27e\", \"parts\": []}, \"after\": [{\"category\": \"영업사원\", \"name\": \"친절도 및 응대 태도\", \"definition\": \"영업사원의 친절함, 솔직함, 책임감, 편안함 등 고객을 대하는 태도와 응대 방식을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0009\", \"quote\": \"친절하고\"}, {\"voc_id\": \"V0011\", \"quote\": \"편하게 대해주셔서\"}, {\"voc_id\": \"V0012\", \"quote\": \"영업사원의 솔직함\"}, {\"voc_id\": \"V0017\", \"quote\": \"친절\"}, {\"voc_id\": \"V0018\", \"quote\": \"영업사원의 친절함\"}, {\"voc_id\": \"V0020\", \"quote\": \"친절\"}], \"id\": \"Cec7b99475abd\", \"parts\": []}, {\"category\": \"영업사원\", \"name\": \"\", \"definition\": \"\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0009\", \"quote\": \"친절하고\"}, {\"voc_id\": \"V0011\", \"quote\": \"편하게 대해주셔서\"}, {\"voc_id\": \"V0012\", \"quote\": \"영업사원의 솔직함\"}, {\"voc_id\": \"V0017\", \"quote\": \"친절\"}, {\"voc_id\": \"V0018\", \"quote\": \"영업사원의 친절함\"}, {\"voc_id\": \"V0020\", \"quote\": \"친절\"}], \"id\": \"C4ebb845d08dd\", \"parts\": []}]}, {\"kind\": \"split\", \"source_id\": \"C2bbca7cae217\", \"target_ids\": [\"C41adcbf8ca6c\", \"Cbca4956fc242\"], \"before\": {\"category\": \"종합 평가\", \"name\": \"구매 경험\", \"definition\": \"차량 구매 과정 전반에 대한 만족도, 신속성 및 영업소의 청결 상태 등을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0013\", \"quote\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며\"}, {\"voc_id\": \"V0016\", \"quote\": \"만족합니다.\"}], \"id\": \"C2bbca7cae217\", \"parts\": []}, \"after\": [{\"category\": \"종합 평가\", \"name\": \"구매 경험\", \"definition\": \"차량 구매 과정 전반에 대한 만족도, 신속성 및 영업소의 청결 상태 등을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0013\", \"quote\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며\"}, {\"voc_id\": \"V0016\", \"quote\": \"만족합니다.\"}], \"id\": \"C41adcbf8ca6c\", \"parts\": []}, {\"category\": \"종합 평가\", \"name\": \"\", \"definition\": \"\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0013\", \"quote\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며\"}, {\"voc_id\": \"V0016\", \"quote\": \"만족합니다.\"}], \"id\": \"Cbca4956fc242\", \"parts\": []}]}, {\"kind\": \"user_edit\", \"before\": [{\"category\": \"고객 서비스\", \"name\": \"사후 관리 및 문의 대응\", \"definition\": \"차량 인도 후 제공되는 정기 점검 안내, AS 관련 설명, 사후 관리 및 고객 문의에 대한 대응 수준을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0001\", \"quote\": \"구매 이후에도 이어지는 지속적인 고객관리였습니다\"}, {\"voc_id\": \"V0005\", \"quote\": \"그냥 팔면 땡인것 같습니다.\"}, {\"voc_id\": \"V0008\", \"quote\": \"구매이후 관리나 as 관련 안내등이 좀 부족해보이긴합니다.\"}, {\"voc_id\": \"V0013\", \"quote\": \"이후에도 여러 문의사항들에 대하여 잘 대응해주셔서\"}, {\"voc_id\": \"V0014\", \"quote\": \"차량 사후 관리나 정비를 위해 모르는 것이 많았는데 큰 도움 주었습니다.\"}], \"id\": \"Ce5c618b60a93\"}, {\"category\": \"영업사원\", \"name\": \"친절도 및 응대 태도\", \"definition\": \"영업사원의 친절함, 솔직함, 책임감, 편안함 등 고객을 대하는 태도와 응대 방식을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0009\", \"quote\": \"친절하고\"}, {\"voc_id\": \"V0011\", \"quote\": \"편하게 대해주셔서\"}, {\"voc_id\": \"V0012\", \"quote\": \"영업사원의 솔직함\"}, {\"voc_id\": \"V0017\", \"quote\": \"친절\"}, {\"voc_id\": \"V0018\", \"quote\": \"영업사원의 친절함\"}, {\"voc_id\": \"V0020\", \"quote\": \"친절\"}], \"id\": \"Cd469373fc27e\"}, {\"category\": \"영업사원\", \"name\": \"전문성\", \"definition\": \"차량 기능, 조작 방법, AS 및 보증 기간 등 차량 구매 및 유지에 필요한 정보에 대한 영업사원의 전문 지식과 설명 수준을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0004\", \"quote\": \"서비스 활용방법과 편의조작설정방법을 깊게 설명해주시고\"}, {\"voc_id\": \"V0006\", \"quote\": \"사실 AS기간이나 보증 관련에 대해서 자세하게 설명을 해 주기를 원했으나 개략적인 설명외에는 없어서\"}, {\"voc_id\": \"V0013\", \"quote\": \"전문적인 영업사원\"}, {\"voc_id\": \"V0018\", \"quote\": \"차에 대한 전문지식이 많았다\"}, {\"voc_id\": \"V0020\", \"quote\": \"자세한설명\"}], \"id\": \"Ccf31140cbd83\"}, {\"category\": \"회사 운영\", \"name\": \"인력 부족\", \"definition\": \"영업사원 또는 회사 전반의 인력이 부족하다고 느끼는 점을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0003\", \"quote\": \"영업사원이 부족한것 같다.\"}, {\"voc_id\": \"V0019\", \"quote\": \"그냥 테슬라코리아는 인력이 부족한거같다\"}], \"id\": \"C4ac5dc64188b\"}, {\"category\": \"혜택 및 조건\", \"name\": \"할인 및 프로모션\", \"definition\": \"차량 구매 시 제공되는 할인 혜택이나 프로모션의 유무에 대한 만족도를 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0007\", \"quote\": \"할인 프로모션이 없는게 아쉽습니다.\"}], \"id\": \"C8b3e81a80cab\"}, {\"category\": \"종합 평가\", \"name\": \"구매 경험\", \"definition\": \"차량 구매 과정 전반에 대한 만족도, 신속성 및 영업소의 청결 상태 등을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0013\", \"quote\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며\"}, {\"voc_id\": \"V0016\", \"quote\": \"만족합니다.\"}], \"id\": \"C2bbca7cae217\"}]}, {\"kind\": \"table_layout\", \"rows\": [{\"category\": \"고객 서비스\", \"name\": \"사후 관리 및 문의 대응\", \"definition\": \"차량 인도 후 제공되는 정기 점검 안내, AS 관련 설명, 사후 관리 및 고객 문의에 대한 대응 수준을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0001\", \"quote\": \"구매 이후에도 이어지는 지속적인 고객관리였습니다\"}, {\"voc_id\": \"V0005\", \"quote\": \"그냥 팔면 땡인것 같습니다.\"}, {\"voc_id\": \"V0008\", \"quote\": \"구매이후 관리나 as 관련 안내등이 좀 부족해보이긴합니다.\"}, {\"voc_id\": \"V0013\", \"quote\": \"이후에도 여러 문의사항들에 대하여 잘 대응해주셔서\"}, {\"voc_id\": \"V0014\", \"quote\": \"차량 사후 관리나 정비를 위해 모르는 것이 많았는데 큰 도움 주었습니다.\"}], \"id\": \"Ce5c618b60a93\", \"parts\": []}, {\"category\": \"영업사원\", \"name\": \"친절도\", \"definition\": \"영업사원의 친절함, 솔직함, 책임감, 편안함 등 고객을 대하는 태도와 응대 방식을 의미합니다.\", \"reason\": \"사용자 분류 기준표 편집\", \"evidence\": [{\"voc_id\": \"V0009\", \"quote\": \"친절하고\"}, {\"voc_id\": \"V0011\", \"quote\": \"편하게 대해주셔서\"}, {\"voc_id\": \"V0012\", \"quote\": \"영업사원의 솔직함\"}, {\"voc_id\": \"V0017\", \"quote\": \"친절\"}, {\"voc_id\": \"V0018\", \"quote\": \"영업사원의 친절함\"}, {\"voc_id\": \"V0020\", \"quote\": \"친절\"}], \"id\": \"Cec7b99475abd\", \"parts\": []}, {\"category\": \"영업사원\", \"name\": \"응대 태도\", \"definition\": \"고객의 구매 과정을 지원하고 응대하는 영업사원의 책임감, 적극성, 업무 처리 방식 및 태도를 의미합니다.\", \"reason\": \"사용자 분류 기준표 편집 · AI 분류 기준\", \"evidence\": [{\"voc_id\": \"V0009\", \"quote\": \"친절하고\"}, {\"voc_id\": \"V0011\", \"quote\": \"편하게 대해주셔서\"}, {\"voc_id\": \"V0012\", \"quote\": \"영업사원의 솔직함\"}, {\"voc_id\": \"V0017\", \"quote\": \"친절\"}, {\"voc_id\": \"V0018\", \"quote\": \"영업사원의 친절함\"}, {\"voc_id\": \"V0020\", \"quote\": \"친절\"}], \"id\": \"C4ebb845d08dd\", \"parts\": [], \"definition_source\": \"ai\"}, {\"category\": \"영업사원\", \"name\": \"전문성\", \"definition\": \"차량 기능, 조작 방법, AS 및 보증 기간 등 차량 구매 및 유지에 필요한 정보에 대한 영업사원의 전문 지식과 설명 수준을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0004\", \"quote\": \"서비스 활용방법과 편의조작설정방법을 깊게 설명해주시고\"}, {\"voc_id\": \"V0006\", \"quote\": \"사실 AS기간이나 보증 관련에 대해서 자세하게 설명을 해 주기를 원했으나 개략적인 설명외에는 없어서\"}, {\"voc_id\": \"V0013\", \"quote\": \"전문적인 영업사원\"}, {\"voc_id\": \"V0018\", \"quote\": \"차에 대한 전문지식이 많았다\"}, {\"voc_id\": \"V0020\", \"quote\": \"자세한설명\"}], \"id\": \"Ccf31140cbd83\", \"parts\": []}, {\"category\": \"회사 운영\", \"name\": \"인력 부족\", \"definition\": \"영업사원 또는 회사 전반의 인력이 부족하다고 느끼는 점을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0003\", \"quote\": \"영업사원이 부족한것 같다.\"}, {\"voc_id\": \"V0019\", \"quote\": \"그냥 테슬라코리아는 인력이 부족한거같다\"}], \"id\": \"C4ac5dc64188b\", \"parts\": []}, {\"category\": \"혜택 및 조건\", \"name\": \"할인 및 프로모션\", \"definition\": \"차량 구매 시 제공되는 할인 혜택이나 프로모션의 유무에 대한 만족도를 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0007\", \"quote\": \"할인 프로모션이 없는게 아쉽습니다.\"}], \"id\": \"C8b3e81a80cab\", \"parts\": []}, {\"category\": \"종합 평가\", \"name\": \"구매 경험\", \"definition\": \"차량 구매 과정 전반에 대한 만족도, 신속성 \", \"reason\": \"사용자 분류 기준표 편집\", \"evidence\": [{\"voc_id\": \"V0013\", \"quote\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며\"}, {\"voc_id\": \"V0016\", \"quote\": \"만족합니다.\"}], \"id\": \"C41adcbf8ca6c\", \"parts\": []}, {\"category\": \"영업소\", \"name\": \"청결\", \"definition\": \"영업소의 청결 상태 등을 의미합니다.\", \"reason\": \"사용자 분류 기준표 편집\", \"evidence\": [{\"voc_id\": \"V0013\", \"quote\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며\"}, {\"voc_id\": \"V0016\", \"quote\": \"만족합니다.\"}], \"id\": \"Cbca4956fc242\", \"parts\": []}]}]",
-        "constraints_json": "[{\"category\": \"영업사원\", \"name\": \"친절도 및 응대 태도\", \"definition\": \"영업사원의 친절함, 솔직함, 책임감, 편안함 등 고객을 대하는 태도와 응대 방식을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0009\", \"quote\": \"친절하고\"}, {\"voc_id\": \"V0011\", \"quote\": \"편하게 대해주셔서\"}, {\"voc_id\": \"V0012\", \"quote\": \"영업사원의 솔직함\"}, {\"voc_id\": \"V0017\", \"quote\": \"친절\"}, {\"voc_id\": \"V0018\", \"quote\": \"영업사원의 친절함\"}, {\"voc_id\": \"V0020\", \"quote\": \"친절\"}], \"id\": \"Cd469373fc27e\"}, {\"category\": \"종합 평가\", \"name\": \"구매 경험\", \"definition\": \"차량 구매 과정 전반에 대한 만족도, 신속성 및 영업소의 청결 상태 등을 의미합니다.\", \"reason\": \"사용자 검토·확정\", \"evidence\": [{\"voc_id\": \"V0013\", \"quote\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다. 깔끔하고 정돈된 영업소였으며\"}, {\"voc_id\": \"V0016\", \"quote\": \"만족합니다.\"}], \"id\": \"C2bbca7cae217\"}]",
-        "created_at": "2026-10-03T06:17:34.655011+00:00",
-        "name": "",
-        "deleted_at": ""
-      },
       {
         "id": "ce40f719fbd84e61a6ecaf3d3f8ca6f5",
         "dataset_id": "fecaf56f68e64677b52a40c0a0f9e9fa",
@@ -137,24 +80,6 @@
     ],
     "runs": [
       {
-        "id": "23c42bfde2404d8cbf2f547c074523e8",
-        "dataset_id": "7e43bb7d0dcb496c90f9f8c25fe08272",
-        "codebook_id": "89fff22d85e349e9a14281413c8eab2c",
-        "model": "gemini-3.5-flash",
-        "prompt_version": "voc-v1",
-        "status": "completed",
-        "round": 0,
-        "round_limit": 2,
-        "context": "자동차 구매 만족도 조사에서 전반적인 구매과정의 만족도를 묻는 문항에 대한 voc였습니다.",
-        "error": "",
-        "lease_until": 0,
-        "created_at": "2026-10-03T06:17:37.840430+00:00",
-        "parent_run_id": null,
-        "parent_result_revision": null,
-        "result_revision": 0,
-        "inheritance_json": "[]"
-      },
-      {
         "id": "989f4da7fa084f318faf22c4961131f1",
         "dataset_id": "fecaf56f68e64677b52a40c0a0f9e9fa",
         "codebook_id": "4e147fb22e38447892affacb46687bf1",
@@ -174,166 +99,6 @@
       }
     ],
     "results": [
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0001",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0001\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"구매 이후 지속적인 고객관리와 정기 점검 안내, 친절한 상담 및 빠른 문의 대응에 매우 만족함\", \"keywords\": [\"고객관리\", \"점검 안내\", \"친절한 상담\", \"빠른 대응\"], \"issues\": [{\"code_id\": \"Ce5c618b60a93\", \"sentiment\": \"긍정\", \"evidence_text\": \"구매 이후에도 이어지는 지속적인 고객관리였습니다\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}, {\"code_id\": \"Ce5c618b60a93\", \"sentiment\": \"긍정\", \"evidence_text\": \"정기적으로 점검 안내\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}, {\"code_id\": \"Cec7b99475abd\", \"sentiment\": \"긍정\", \"evidence_text\": \"친절한 상담\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}, {\"code_id\": \"Ce5c618b60a93\", \"sentiment\": \"긍정\", \"evidence_text\": \"작은 문의에도 빠르게 대응해주는 점\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0002",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0002\", \"response_type\": \"no_content\", \"no_content_reason\": \"딱히 없음\", \"review_reason\": \"\", \"summary\": \"\", \"keywords\": [], \"issues\": []}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0003",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0003\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"영업사원 인력이 부족하다고 느낌\", \"keywords\": [\"영업사원\", \"부족\"], \"issues\": [{\"code_id\": \"C4ac5dc64188b\", \"sentiment\": \"부정\", \"evidence_text\": \"영업사원이 부족한것 같다.\", \"context_evidence_text\": \"\", \"subject_label\": \"영업사원\", \"subject_evidence_text\": \"영업사원\", \"subject_evidence_source\": \"original\", \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0004",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0004\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"서비스 활용 및 편의조작설정 방법과 사후 AS에 대한 상세한 설명에 만족함\", \"keywords\": [\"서비스 활용방법\", \"편의조작설정\", \"AS 설명\"], \"issues\": [{\"code_id\": \"Ccf31140cbd83\", \"sentiment\": \"긍정\", \"evidence_text\": \"서비스 활용방법과 편의조작설정방법을 깊게 설명해주시고\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}, {\"code_id\": \"Ccf31140cbd83\", \"sentiment\": \"긍정\", \"evidence_text\": \"사후일어날수있는 AS에 대하여 전반적으로 잘 설명해줌\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0005",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0005\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"차량 판매 이후 사후 관리가 전혀 이루어지지 않는 것에 대해 불만족함\", \"keywords\": [\"사후관리\", \"판매\"], \"issues\": [{\"code_id\": \"Ce5c618b60a93\", \"sentiment\": \"부정\", \"evidence_text\": \"그냥 팔면 땡인것 같습니다.\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0006",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0006\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"AS 기간 및 보증 관련 설명이 개략적이어서 불만족스러움\", \"keywords\": [\"AS기간\", \"보증 관련\", \"개략적인 설명\"], \"issues\": [{\"code_id\": \"Ccf31140cbd83\", \"sentiment\": \"부정\", \"evidence_text\": \"사실 AS기간이나 보증 관련에 대해서 자세하게 설명을 해 주기를 원했으나 개략적인 설명외에는 없어서 살짝 불만족스러웠습니다.\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0007",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0007\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"할인 프로모션 혜택이 없는 점이 아쉬움\", \"keywords\": [\"할인 프로모션\", \"아쉬움\"], \"issues\": [{\"code_id\": \"C8b3e81a80cab\", \"sentiment\": \"부정\", \"evidence_text\": \"할인 프로모션이 없는게 아쉽습니다.\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0008",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0008\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"구매 이후 관리 및 AS 관련 안내가 부족하다고 느낌\", \"keywords\": [\"구매이후 관리\", \"as 안내\", \"부족\"], \"issues\": [{\"code_id\": \"Ce5c618b60a93\", \"sentiment\": \"부정\", \"evidence_text\": \"구매이후 관리나 as 관련 안내등이 좀 부족해보이긴합니다.\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0009",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0009\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"친절하고 알아서 꼼꼼하게 진행해 준 응대 태도에 만족함\", \"keywords\": [\"친절\", \"알아서 진행\"], \"issues\": [{\"code_id\": \"Cec7b99475abd\", \"sentiment\": \"긍정\", \"evidence_text\": \"친절하고\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}, {\"code_id\": \"C4ebb845d08dd\", \"sentiment\": \"긍정\", \"evidence_text\": \"내가 신경쓸 게 거의 없이 알아서 진행해주셨다\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0010",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0010\", \"response_type\": \"no_content\", \"no_content_reason\": \"없음\", \"review_reason\": \"\", \"summary\": \"\", \"keywords\": [], \"issues\": []}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0011",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0011\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"편하게 대해주어 감사함\", \"keywords\": [\"편안함\", \"감사\"], \"issues\": [{\"code_id\": \"Cec7b99475abd\", \"sentiment\": \"긍정\", \"evidence_text\": \"편하게 대해주셔서\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0012",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0012\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"영업사원의 솔직함에 만족함\", \"keywords\": [\"영업사원\", \"솔직함\"], \"issues\": [{\"code_id\": \"Cec7b99475abd\", \"sentiment\": \"긍정\", \"evidence_text\": \"영업사원의 솔직함\", \"context_evidence_text\": \"\", \"subject_label\": \"영업사원\", \"subject_evidence_text\": \"영업사원\", \"subject_evidence_source\": \"original\", \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0013",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0013\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"빠르고 만족스러운 차량 구매 경험 및 영업소 청결, 전문적인 영업사원의 대응에 만족함\", \"keywords\": [\"구매 경험\", \"영업소\", \"영업사원\", \"문의 대응\"], \"issues\": [{\"code_id\": \"C41adcbf8ca6c\", \"sentiment\": \"긍정\", \"evidence_text\": \"전체적으로 빠르고 만족스러운 차량 구매 경험이였습니다.\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}, {\"code_id\": \"Cbca4956fc242\", \"sentiment\": \"긍정\", \"evidence_text\": \"깔끔하고 정돈된 영업소였으며\", \"context_evidence_text\": \"\", \"subject_label\": \"영업소\", \"subject_evidence_text\": \"영업소\", \"subject_evidence_source\": \"original\", \"missing_code\": \"\"}, {\"code_id\": \"Ccf31140cbd83\", \"sentiment\": \"긍정\", \"evidence_text\": \"전문적인 영업사원\", \"context_evidence_text\": \"\", \"subject_label\": \"영업사원\", \"subject_evidence_text\": \"영업사원\", \"subject_evidence_source\": \"original\", \"missing_code\": \"\"}, {\"code_id\": \"Ce5c618b60a93\", \"sentiment\": \"긍정\", \"evidence_text\": \"이후에도 여러 문의사항들에 대하여 잘 대응해주셔서\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0014",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0014\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"차량 유지 및 사후 관리에 대한 성실한 답변과 도움에 만족함\", \"keywords\": [\"질문 답변\", \"사후 관리\", \"정비 도움\"], \"issues\": [{\"code_id\": \"Ce5c618b60a93\", \"sentiment\": \"긍정\", \"evidence_text\": \"차량 유지를 위한 소소한 질문에도 성실히 답변을 잘 해주었습니다.\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}, {\"code_id\": \"Ce5c618b60a93\", \"sentiment\": \"긍정\", \"evidence_text\": \"차량 사후 관리나 정비를 위해 모르는 것이 많았는데 큰 도움 주었습니다.\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0015",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0015\", \"response_type\": \"no_content\", \"no_content_reason\": \"문장 부호 외에 의미 있는 내용이 없음\", \"review_reason\": \"\", \"summary\": \"\", \"keywords\": [], \"issues\": []}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0016",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0016\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"구매 경험에 만족함\", \"keywords\": [\"만족\"], \"issues\": [{\"code_id\": \"C41adcbf8ca6c\", \"sentiment\": \"긍정\", \"evidence_text\": \"만족합니다.\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0017",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0017\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"친절함에 만족함\", \"keywords\": [\"친절\"], \"issues\": [{\"code_id\": \"Cec7b99475abd\", \"sentiment\": \"긍정\", \"evidence_text\": \"친절\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0018",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0018\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"영업사원의 친절함과 전문지식에 만족함\", \"keywords\": [\"영업사원\", \"친절함\", \"전문지식\"], \"issues\": [{\"code_id\": \"Cec7b99475abd\", \"sentiment\": \"긍정\", \"evidence_text\": \"영업사원의 친절함\", \"context_evidence_text\": \"\", \"subject_label\": \"영업사원\", \"subject_evidence_text\": \"영업사원\", \"subject_evidence_source\": \"original\", \"missing_code\": \"\"}, {\"code_id\": \"Ccf31140cbd83\", \"sentiment\": \"긍정\", \"evidence_text\": \"차에 대한 전문지식이 많았다\", \"context_evidence_text\": \"\", \"subject_label\": \"영업사원\", \"subject_evidence_text\": \"영업사원\", \"subject_evidence_source\": \"original\", \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0019",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0019\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"테슬라코리아의 인력 부족을 지적함\", \"keywords\": [\"테슬라코리아\", \"인력 부족\"], \"issues\": [{\"code_id\": \"C4ac5dc64188b\", \"sentiment\": \"부정\", \"evidence_text\": \"그냥 테슬라코리아는 인력이 부족한거같다\", \"context_evidence_text\": \"\", \"subject_label\": \"테슬라코리아\", \"subject_evidence_text\": \"테슬라코리아\", \"subject_evidence_source\": \"original\", \"missing_code\": \"\"}]}",
-        "error": ""
-      },
-      {
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "round": 0,
-        "voc_id": "V0020",
-        "status": "success",
-        "result_json": "{\"voc_id\": \"V0020\", \"response_type\": \"opinions\", \"no_content_reason\": \"\", \"review_reason\": \"\", \"summary\": \"친절함, 자세한 설명, 책임감에 만족함\", \"keywords\": [\"친절\", \"자세한 설명\", \"책임감\"], \"issues\": [{\"code_id\": \"Cec7b99475abd\", \"sentiment\": \"긍정\", \"evidence_text\": \"친절\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}, {\"code_id\": \"Ccf31140cbd83\", \"sentiment\": \"긍정\", \"evidence_text\": \"자세한설명\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}, {\"code_id\": \"Cec7b99475abd\", \"sentiment\": \"긍정\", \"evidence_text\": \"책임감\", \"context_evidence_text\": \"\", \"subject_label\": null, \"subject_evidence_text\": \"\", \"subject_evidence_source\": null, \"missing_code\": \"\"}]}",
-        "error": ""
-      },
       {
         "run_id": "989f4da7fa084f318faf22c4961131f1",
         "round": 0,
@@ -735,17 +500,7 @@
         "error": ""
       }
     ],
-    "result_groups": [
-      {
-        "id": "cb8dd4310e904bdb86d7cbcd26b1cb2c",
-        "run_id": "23c42bfde2404d8cbf2f547c074523e8",
-        "codebook_id": "89fff22d85e349e9a14281413c8eab2c",
-        "name": "ㅇㅇㅇ",
-        "code_ids_json": "[\"Ce5c618b60a93\", \"Cec7b99475abd\"]",
-        "sentiment": "전체",
-        "created_at": "2026-10-06T06:03:53.099693+00:00"
-      }
-    ],
+    "result_groups": [],
     "corrections": [
       {
         "id": "bf2096f7ddf044c0a0417df40073c73e",

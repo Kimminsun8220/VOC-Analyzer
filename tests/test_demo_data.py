@@ -6,7 +6,7 @@ def test_public_demo_restores_completed_results_and_history(tmp_path):
     store = Store(tmp_path / "demo.db")
     assert seed_public_demo(store)
     datasets = store.list_datasets()
-    assert {d["name"] for d in datasets} == {"SSI", "상품평 VOC"}
+    assert {d["name"] for d in datasets} == {"상품평 VOC"}
     counts = {}
     for d in datasets:
         records = store.dataset(d["id"])["records"]
@@ -16,7 +16,7 @@ def test_public_demo_restores_completed_results_and_history(tmp_path):
         assert len(runs) == 1 and runs[0]["status"] == "completed"
         results = store.effective_results(runs[0]["id"])
         assert {r["voc_id"] for r in results} == {r["id"] for r in records}
-    assert counts == {"SSI": 20, "상품평 VOC": 50}
+    assert counts == {"상품평 VOC": 50}
     assert store.active_run() is None
     with store.connect() as db:
         assert not db.execute("PRAGMA foreign_key_check").fetchall()
@@ -27,7 +27,7 @@ def test_demo_does_not_overwrite_edits_or_reappear_after_deletion(tmp_path):
     store = Store(tmp_path / "demo.db")
     seed_public_demo(store)
     with store.connect() as db:
-        db.execute("UPDATE datasets SET name='직접 수정한 이름' WHERE name='SSI'")
+        db.execute("UPDATE datasets SET name='직접 수정한 이름' WHERE name='상품평 VOC'")
     assert seed_public_demo(store) is False
     assert any(d["name"] == "직접 수정한 이름" for d in store.list_datasets())
     with store.connect() as db:
@@ -55,4 +55,4 @@ def test_hosted_demo_does_not_require_ai_credentials(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "ENV_PATH", tmp_path / "missing.env")
     store = Store(tmp_path / "cloud.db")
     prepare_cloud_demo(store)
-    assert {d["name"] for d in store.list_datasets()} == {"SSI", "상품평 VOC"}
+    assert {d["name"] for d in store.list_datasets()} == {"상품평 VOC"}

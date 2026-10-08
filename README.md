@@ -1,5 +1,7 @@
 # AI VOC Analyzer
 
+[발표자료 PDF 다운로드](https://github.com/Kimminsun8220/VOC-Analyzer/raw/refs/heads/master/outputs/presentation/VOC_Analyzer_발표자료_5장_텍스트.pdf)
+
 VOC 입력 → AI 분류 기준표 초안 → 검토·확정 → 고객 의견 자동 분류 → 기준 수정 → 변경된 기준으로 다시 분류 → 시각화를 연결한 로컬 Streamlit 앱입니다.
 
 화면과 차트의 글꼴은 **프리텐다드**입니다. [공식 배포본 v1.3.9](https://github.com/orioncactus/pretendard/tree/v1.3.9/packages/pretendard)의 가변 글꼴을 `static/fonts/`에 포함해 외부 폰트 서버 없이 제공합니다. 사용 조건은 함께 포함한 `static/fonts/OFL.txt`에서 확인할 수 있습니다. 실행 중에 글꼴 설정을 변경했다면 앱을 다시 실행하고 브라우저를 새로고침합니다.

@@ -1,5 +1,7 @@
 # AI VOC Analyzer
 
+[서비스 바로가기](https://voc-analyzer8220.streamlit.app/)
+
 [발표자료 PDF 보기](https://github.com/Kimminsun8220/VOC-Analyzer/blob/master/outputs/presentation/VOC_Analyzer_발표자료_5장_텍스트.pdf)
 
 VOC 입력 → AI 분류 기준표 초안 → 검토·확정 → 고객 의견 자동 분류 → 기준 수정 → 변경된 기준으로 다시 분류 → 시각화를 연결한 로컬 Streamlit 앱입니다.
